@@ -1,19 +1,36 @@
 import React, { useEffect } from 'react';
 import * as THREE from 'three';
+import { VertexShader, FragmentShader } from './Shader';
 import './App.css';
 
 function App() {
 
-  const camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 0.01, 10 );
-  const scene = new THREE.Scene();
-  const renderer = new THREE.WebGLRenderer( { antialias: true } );
-  const geometry = new THREE.BoxGeometry( 0.2, 0.2, 0.2 );
-  const material = new THREE.MeshNormalMaterial();
-  const mesh = new THREE.Mesh( geometry, material );
-
+  var camera, scene, renderer, geometry, material, mesh;
 
   useEffect(() => {
     
+    init();
+    animate();
+
+  })
+
+  function init() {
+
+    camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 0.01, 10 );
+    scene = new THREE.Scene();
+    renderer = new THREE.WebGLRenderer( { antialias: true } );
+    geometry = new THREE.BoxGeometry( 0.2, 0.2, 0.2 );
+    // material = new THREE.MeshNormalMaterial();
+    let uniforms = {
+      colorB: {type: 'vec3', value: new THREE.Color(0xACB6E1)},
+      colorA: {type: 'vec3', value: new THREE.Color(0x74ebd5)}
+    }
+    material = new THREE.ShaderMaterial({
+      uniforms: uniforms,
+      fragmentShader: FragmentShader(),
+      vertexShader: VertexShader(),
+    })
+    mesh = new THREE.Mesh( geometry, material );
     camera.position.z = 1;
   
     scene.add( mesh );
@@ -21,10 +38,8 @@ function App() {
     renderer.setSize( window.innerWidth, window.innerHeight );
     document.body.appendChild( renderer.domElement );
     renderer.render( scene, camera );
-    
-    animate();
-  })
 
+  }
   
   function animate() {
   
