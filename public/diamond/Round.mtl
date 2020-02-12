@@ -1,0 +1,12 @@
+# Blender MTL File: 'Round.blend'
+# Material Count: 1
+
+newmtl Diamond
+Ns 96.078431
+Ka 1.000000 1.000000 1.000000
+Kd 0.236213 0.233588 0.236213
+Ks 0.243036 0.243036 0.243036
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 2
