@@ -3,7 +3,11 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import * as dat from 'dat.gui';
 import './App.css';
+/*eslint-disable-next-line */
+import shader from '!!webpack-glsl-loader!./shaders/shader.glsl';
 const OrbitControls = require('three-orbit-controls')(THREE);
+
+console.log(shader);
 
 function App() {
   var camera, scene, renderer, controls, gui;
