@@ -1,6 +1,9 @@
-precision highp float;
-
-varying float distFromCenter;
+uniform samplerCube env;
+varying vec3 V;
+varying vec3 N;
 void main () {
-  gl_FragColor = vec4(0.,1.,0.,1.);
+	vec3 nV= normalize(V);
+	vec3 nN= normalize(N);
+	vec3 R= reflect(nV,nN);
+	gl_FragColor= textureCube(env, R);
 }

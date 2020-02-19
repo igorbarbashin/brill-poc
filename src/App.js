@@ -31,7 +31,7 @@ function App() {
     controls = new OrbitControls(camera);
 
     var env_tex = new THREE.CubeTextureLoader()
-      .setPath('./image/environment0/')
+      .setPath('./environment0/')
       .load([
         'px.png',
         'nx.png',
@@ -40,11 +40,13 @@ function App() {
         'pz.png',
         'nz.png'
       ]);
-
+      console.log(env_tex)
+    scene.background= env_tex
 
     var diamond= {};
     diamond.material= {};
     diamond.uniforms= {
+      env: env_tex,
       exposure: 1,
       opacity: 1,
       metallness: 0
@@ -87,7 +89,7 @@ function App() {
     const exposure = 1;
     gui
       .add(diamond.uniforms, 'exposure', 0, 5)
-      .name('ambient light intensity');
+      .name('exposure');
     gui
       .add(diamond.uniforms, 'opacity', 0, 1)
       .step(0.1)
