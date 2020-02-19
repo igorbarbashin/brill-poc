@@ -47,10 +47,22 @@ function App() {
     diamond.material= {};
     diamond.uniforms= {
       env: env_tex,
-      exposure: 1,
-      opacity: 1,
-      metallness: 0
+      exposure: {value: 1.},
+      reflectance: {value: .5},
+      transmittance: {value: 1.},
+      ior: {value: 2.},
     };
+    gui = new dat.GUI();
+    gui.add(diamond.uniforms.exposure, 'value', 0, 5)
+      .name('exposure');
+    gui.add(diamond.uniforms.reflectance, 'value', 0, 1)
+      .name('reflectance');
+    gui.add(diamond.uniforms.transmittance, 'value', 0, 1)
+      .name('transmittance');
+    gui.add(diamond.uniforms.ior, 'value', -5, 5)
+      .name('refraction');
+
+
     var shader= {};
     shader.vert= "";
     shader.frag= "";
@@ -85,19 +97,6 @@ function App() {
 
     const skyColor = 0xb1e1ff; // light blue
 
-    gui = new dat.GUI();
-    const exposure = 1;
-    gui
-      .add(diamond.uniforms, 'exposure', 0, 5)
-      .name('exposure');
-    gui
-      .add(diamond.uniforms, 'opacity', 0, 1)
-      .step(0.1)
-      .name('opacity');
-    gui
-      .add(diamond.uniforms, 'metallness', 0, 1)
-      .step(0.1)
-      .name('metallness');
       
     var resize= function () {
       renderer.setSize(window.innerWidth, window.innerHeight);
