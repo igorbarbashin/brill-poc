@@ -4,10 +4,10 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import * as dat from 'dat.gui';
 import './App.css';
 /*eslint-disable-next-line */
-import shader from '!!webpack-glsl-loader!./shaders/shader.glsl';
+import shader0_vert from '!!webpack-glsl-loader!./shaders/diamond0.vert.glsl';
+/*eslint-disable-next-line */
+import shader0_frag from '!!webpack-glsl-loader!./shaders/diamond0.frag.glsl';
 const OrbitControls = require('three-orbit-controls')(THREE);
-
-console.log(shader);
 
 function App() {
   var camera, scene, renderer, controls, gui;
@@ -27,41 +27,50 @@ function App() {
     );
     scene = new THREE.Scene();
     camera.position.z = 0.6;
-    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer = new THREE.WebGLRenderer();
     controls = new OrbitControls(camera);
-    gui = new dat.GUI();
 
-    // DIAMOND MESH
-    const gemBackMaterial = new THREE.MeshPhysicalMaterial({
-      map: null,
-      color: 0xffffff,
-      metalness: 1,
-      roughness: 0,
-      opacity: 0.5,
-      side: THREE.BackSide,
-      transparent: true,
-      envMapIntensity: 5,
-      premultipliedAlpha: true
+    var env_tex = new THREE.CubeTextureLoader()
+      .setPath('./image/environment0/')
+      .load([
+        'px.png',
+        'nx.png',
+        'py.png',
+        'ny.png',
+        'pz.png',
+        'nz.png'
+      ]);
+
+
+    var diamond= {};
+    diamond.material= {};
+    diamond.uniforms= {
+      exposure: 1,
+      opacity: 1,
+      metallness: 0
+    };
+    var shader= {};
+    shader.vert= "";
+    shader.frag= "";
+    diamond.material.front= new THREE.ShaderMaterial({
+      uniforms: diamond.uniforms,
+      vertexShader: shader0_vert,
+      fragmentShader: shader0_frag,
+      side: THREE.FrontSide
+    });
+    diamond.material.back= new THREE.ShaderMaterial({
+      uniforms: diamond.uniforms,
+      vertexShader: shader0_vert,
+      fragmentShader: shader0_frag,
+      side: THREE.BackSide
     });
 
-    const gemFrontMaterial = new THREE.MeshPhysicalMaterial({
-      map: null,
-      color: 0xffffff,
-      metalness: 0,
-      roughness: 0,
-      opacity: 0.25,
-      side: THREE.FrontSide,
-      transparent: false,
-      envMapIntensity: 10,
-      premultipliedAlpha: true
-    });
-
-    gltfLoader.load('./diamond/diamond.glb', ({ scene: diamond }) => {
-      diamond.traverse(function(child) {
+    gltfLoader.load('./diamond/diamond.glb', ({ scene: mesh }) => {
+      mesh.traverse((child)=> {
         if (child instanceof THREE.Mesh) {
-          child.material = gemBackMaterial;
+          child.material = diamond.material.front;
           const second = child.clone();
-          second.material = gemFrontMaterial;
+          second.material = diamond.material.back;
 
           const parent = new THREE.Group();
           parent.add(second);
@@ -72,45 +81,21 @@ function App() {
       });
     });
 
-    // ADD LIGHTING
     const skyColor = 0xb1e1ff; // light blue
-    const ambientLight = new THREE.AmbientLight(skyColor, 2.5);
-    scene.add(ambientLight);
 
-    gui.add(ambientLight, 'intensity', 0, 5).name('ambient light intensity');
-
-    const pointLight1 = new THREE.PointLight(0xffffff);
-    pointLight1.position.set(150, 10, 0);
-    pointLight1.castShadow = false;
-    scene.add(pointLight1);
-
-    const pointLight2 = new THREE.PointLight(0xffffff);
-    pointLight2.position.set(-150, 0, 0);
-    scene.add(pointLight2);
-
-    const pointLight3 = new THREE.PointLight(0xffffff);
-    pointLight3.position.set(0, -10, -150);
-    scene.add(pointLight3);
-
-    const pointLight4 = new THREE.PointLight(0xffffff);
-    pointLight4.position.set(0, 0, 150);
-    scene.add(pointLight4);
-
-    // GUI
+    gui = new dat.GUI();
+    const exposure = 1;
     gui
-      .add(gemFrontMaterial, 'opacity', 0, 1)
+      .add(diamond.uniforms, 'exposure', 0, 5)
+      .name('ambient light intensity');
+    gui
+      .add(diamond.uniforms, 'opacity', 0, 1)
       .step(0.1)
-      .name('gem opacity');
+      .name('opacity');
     gui
-      .add(gemFrontMaterial, 'metalness', 0, 1)
+      .add(diamond.uniforms, 'metallness', 0, 1)
       .step(0.1)
-      .name('gem front metalness');
-    gui
-      .add(gemFrontMaterial, 'premultipliedAlpha', true)
-      .name('gem front premultipliedAlpha');
-    gui
-      .add(gemFrontMaterial, 'transparent', true)
-      .name('gem front transparent');
+      .name('metallness');
       
     var resize= function () {
       renderer.setSize(window.innerWidth, window.innerHeight);
