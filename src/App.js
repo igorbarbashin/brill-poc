@@ -96,7 +96,7 @@ function App() {
     gui
       .add(gemFrontMaterial, 'opacity', 0, 1)
       .step(0.1)
-      .name('gem front opacity');
+      .name('gem opacity');
     gui
       .add(gemFrontMaterial, 'metalness', 0, 1)
       .step(0.1)
@@ -107,8 +107,14 @@ function App() {
     gui
       .add(gemFrontMaterial, 'transparent', true)
       .name('gem front transparent');
-
-    renderer.setSize(window.innerWidth, window.innerHeight);
+      
+    var resize= function () {
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+    };
+    window.addEventListener('resize', resize);
+    resize();
     document.body.appendChild(renderer.domElement);
     renderer.render(scene, camera);
   }
