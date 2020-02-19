@@ -40,7 +40,6 @@ function App() {
         'pz.png',
         'nz.png'
       ]);
-      console.log(env_tex)
     scene.background= env_tex
 
     var diamond= {};
@@ -48,6 +47,8 @@ function App() {
     diamond.uniforms= {
       env: env_tex,
       exposure: {value: 1.},
+      color: {value: new THREE.Color()},
+      metal: {value: 0.},
       reflectance: {value: .5},
       transmittance: {value: 1.},
       ior: {value: 2.},
@@ -55,6 +56,10 @@ function App() {
     gui = new dat.GUI();
     gui.add(diamond.uniforms.exposure, 'value', 0, 5)
       .name('exposure');
+    gui.addColor(diamond.uniforms.color, 'value',0,1)
+      .name('color');
+    gui.add(diamond.uniforms.metal, 'value', 0, 1)
+      .name('metallicity');
     gui.add(diamond.uniforms.reflectance, 'value', 0, 1)
       .name('reflectance');
     gui.add(diamond.uniforms.transmittance, 'value', 0, 1)
