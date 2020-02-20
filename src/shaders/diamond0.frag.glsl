@@ -123,6 +123,8 @@ uniform float sparkle_abundance;
 uniform float sparkle_rate;
 uniform float sparkle_mag;
 
+uniform float glow;
+
 float nse(vec3 p){
 	//max(dFdx(sp),dFdy(sp)); ext disabled??
 	float v;
@@ -159,7 +161,7 @@ void main () {
 	//refraction
 	vec3 cI= textureCube(env, I).rgb*transmittance;
 	vec3 cRI= cR+cI;
-	//vec3 c= mix( cRI, cRI*color/255., vec3(metal));
-	vec3 c= cRI;//*color/255.;
+	vec3 c= mix( cRI, cRI*color/255., vec3(metal));
+	c+= glow*color/255.;
 	gl_FragColor= vec4(c,1.);
 }
