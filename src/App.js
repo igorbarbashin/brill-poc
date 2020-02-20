@@ -4,6 +4,8 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import * as dat from 'dat.gui';
 import './App.css';
 /*eslint-disable-next-line */
+import lib from '!!webpack-glsl-loader!./shaders/lib.glsl';
+/*eslint-disable-next-line */
 import shader0_vert from '!!webpack-glsl-loader!./shaders/diamond0.vert.glsl';
 /*eslint-disable-next-line */
 import shader0_frag from '!!webpack-glsl-loader!./shaders/diamond0.frag.glsl';
@@ -47,25 +49,28 @@ function App() {
     diamond.uniforms= {
       env: env_tex,
       exposure: {value: 1.},
-      color: {value: new THREE.Color()},
+      color: {value: new THREE.Color(0xffffff)},
       metal: {value: 0.},
       reflectance: {value: .5},
       transmittance: {value: 1.},
       ior: {value: 2.},
+      sparkle_abundance: {value: .1},
+      sparkle_rate: {value: 1.},
+      sparkle_mag: {value: 2.},
     };
     gui = new dat.GUI();
-    gui.add(diamond.uniforms.exposure, 'value', 0, 5)
-      .name('exposure');
-    gui.addColor(diamond.uniforms.color, 'value',0,1)
-      .name('color');
-    gui.add(diamond.uniforms.metal, 'value', 0, 1)
-      .name('metallicity');
-    gui.add(diamond.uniforms.reflectance, 'value', 0, 1)
-      .name('reflectance');
-    gui.add(diamond.uniforms.transmittance, 'value', 0, 1)
-      .name('transmittance');
-    gui.add(diamond.uniforms.ior, 'value', -5, 5)
-      .name('refraction');
+    gui.add(diamond.uniforms.exposure,          'value',  0,  5).name('exposure');
+    gui.addColor(diamond.uniforms.color,        'value').name('color');
+    gui.add(diamond.uniforms.metal,             'value',  0,  1).name('metallicity');
+    gui.add(diamond.uniforms.reflectance,       'value',  0,  1).name('reflectance');
+    gui.add(diamond.uniforms.transmittance,     'value',  0,  1).name('transmittance');
+    gui.add(diamond.uniforms.ior,               'value', -5,  5).name('refraction');
+    gui.add(diamond.uniforms.sparkle_abundance, 'value',  0,  1).name('sparkle abundance');
+    gui.add(diamond.uniforms.sparkle_rate,      'value',  0,  1).name('sparkle rate');
+    gui.add(diamond.uniforms.sparkle_mag,       'value',  0,  8).name('sparkle mag');
+    
+    
+
 
 
     var shader= {};
@@ -119,9 +124,9 @@ function App() {
 
     const diamond = scene.getObjectByName('diamond');
     if (diamond) {
-      diamond.rotation.x += 0.001;
-      diamond.rotation.y += 0.001;
-      diamond.rotation.z += 0.001;
+      diamond.rotation.x += 0.0005;
+      diamond.rotation.y += 0.0005;
+      diamond.rotation.z += 0.0015;
     }
 
     renderer.render(scene, camera);
