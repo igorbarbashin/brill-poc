@@ -6,6 +6,7 @@ import {UnrealBloomPass}         from 'three/examples/jsm/postprocessing/UnrealB
 import {AfterimagePass}          from 'three/examples/jsm/postprocessing/AfterimagePass.js';
 import {AdaptiveToneMappingPass} from 'three/examples/jsm/postprocessing/AdaptiveToneMappingPass.js';
 import {ShaderPass}              from 'three/examples/jsm/postprocessing/ShaderPass.js';
+import {CopyShader}              from "three/examples/jsm/shaders/CopyShader.js";
 import {ColorCorrectionShader}   from 'three/examples/jsm/shaders/ColorCorrectionShader.js';
 import {GammaCorrectionShader}   from 'three/examples/jsm/shaders/GammaCorrectionShader.js';
 import {GLTFLoader}              from 'three/examples/jsm/loaders/GLTFLoader';
@@ -28,7 +29,7 @@ async function main(){
 	const w= window.innerWidth;
 	const h= window.innerHeight;
 	camera = new THREE.PerspectiveCamera(
-		50,
+		60,
 		w/h,
 		0.001,10
 	);
@@ -37,19 +38,16 @@ async function main(){
 
 	scene = new THREE.Scene();
 
-	//var rtex= new THREE.WebGLRenderTarget( w,h, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, format: THREE.RGBAFormat, type: THREE.FloatType } );
-	//todo assign float rtex
+	var rtex= new THREE.WebGLRenderTarget( w,h, { minFilter: THREE.NearestFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat, type: THREE.FloatType } );
 	renderer= new THREE.WebGLRenderer({antialias: true});
-	renderer.toneMapping = THREE.ReinhardToneMapping;
-	renderer.encoding= THREE.RGBM16Encoding;
+	console.log(renderer)
 	document.body.appendChild(renderer.domElement);
 
-	composer= new EffectComposer(renderer);
+	composer= new EffectComposer(renderer,rtex);
 	composer.addPass(new RenderPass(scene,camera));
-	composer.addPass(new UnrealBloomPass(256, 1, 16, 1.));//resolution, strength, radius, threshold
-	//composer.addPass(new ShaderPass(ColorCorrectionShader));
 	//composer.addPass(new AdaptiveToneMappingPass());
-	const expshp= new ShaderPass({
+	composer.addPass(new UnrealBloomPass(1024, 10, 16, 1.));//resolution, strength, radius, threshold
+	const pass_tmap= new ShaderPass({
 		uniforms: {
 			"tDiffuse": { value: null },
 			"exposure": { value: 1. }
@@ -66,12 +64,13 @@ async function main(){
 			varying vec2 vUv;
 			void main() {
 				vec4 c= texture2D(tDiffuse, vUv);
-				c.rgb= pow(c.rgb*exposure, vec3(2.2));
-				float lmax= max(max(max(1.,c.r),c.g),c.b);
+				c.rgb= ReinhardToneMapping(c.rgb*exposure);
+				//c.rgb= pow(c.rgb, vec3(2.2));//gamma
+				//im not sure if gamma is being handled auto or if reinhard makes it look good
 				gl_FragColor= c;
 			}`
 	});
-	composer.addPass(expshp);
+	composer.addPass(pass_tmap);
 
 	var env_tex = new THREE.CubeTextureLoader()
 		.setPath('./environment0/')
@@ -83,32 +82,32 @@ async function main(){
 			'pz.png',
 			'nz.png'
 		]);
-	env_tex.encoding= THREE.sRGBEncoding;
+	//env_tex.encoding= THREE.sRGBEncoding;//this should be srgb, but looks bad with reinhard
+		console.log(env_tex)
 	scene.background= env_tex
 
 	diamond= {};
+	const exposure= {value: 1.};
+	const expfun= Math.exp;
 	diamond.uniforms= {
 		env: env_tex,
-		exposure: {value: 1.},
+		exposure: {value: expfun(exposure)},
 		color: {value: new THREE.Color(0xffffff)},
 		metal: {value: 0.},
 		reflectance: {value: .5},
 		transmittance: {value: 1.},
 		ior: {value: 2.},
-		sparkle_abundance: {value: .1},
+		sparkle_abundance: {value: .05},
 		sparkle_rate: {value: 1.},
-		sparkle_mag: {value: 2.},
+		sparkle_mag: {value: 10024.},
 		glow: {value: .1}
 	};
 	gui = new dat.GUI();
 
-	// 	console.log(ColorCorrectionShader)
-	// gui.add({a:0.},'a', -5,  5).name('exposure').onChange(x=>{
-	// 	const c= ColorCorrectionShader.uniforms.mulRGB;
-	// 	c.x= c.y= c.z= 10000;
-	// })
-	// ColorCorrectionShader.uniforms.mulRGB.value= new THREE.Vector3(8,898,88);
-	gui.add(expshp.uniforms.exposure,           'value',  -8, 8).name('exposure');
+	//datgui does not work with setters
+	gui.add(exposure,           'value',  -2, 7).name('exposure').onChange(function(){
+		pass_tmap.uniforms.exposure.value= expfun(exposure.value);
+	});
 	gui.addColor(diamond.uniforms.color,        'value'        ).name('color');
 	gui.add(diamond.uniforms.metal,             'value',  0,  1).name('metallicity');
 	gui.add(diamond.uniforms.reflectance,       'value',  0,  1).name('reflectance');
@@ -182,7 +181,9 @@ async function main(){
 		diamond.mesh.rotation.y += 0.0005;
 		diamond.mesh.rotation.z += 0.0015;
 
+
 		composer.render(dt);
+		//renderer.render(scene,camera);
 
 		requestAnimationFrame(render);
 	};
