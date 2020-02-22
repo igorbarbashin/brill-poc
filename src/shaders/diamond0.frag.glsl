@@ -149,19 +149,22 @@ float gauss(float x, float sigma){
 	return exp(-e*e);
 }
 
-varying vec3 O;
-varying vec3 V;
-varying vec3 N;
+varying vec3 oP;//object vert position
+varying vec3 wP;//world position
+varying vec3 vN;//view normal
+varying vec3 wN;//world normal
+varying vec3 vV;//view view direction
+varying vec3 wV;//world view direction
 void main () {
-	vec3 nV= normalize(V);
-	vec3 nN= normalize(N);
+	vec3 nV= normalize(wV);
+	vec3 nN= normalize(wN);
 	vec3 R= reflect(nV,nN);
 	vec3 I= refract(nV,nN,ior);
 
 	//nN+= rough;
 
 	float S;
-	S= nse(O);
+	S= nse(oP);
 	S= gauss(S,sparkle_abundance);
 	S*= sparkle_mag;
 
@@ -185,6 +188,11 @@ void main () {
 
 	//glow
 	c+= glow*color/255.;
+
+	//debug
+	//c= nN;
+	//c= nV;
+	c= nmapu(c);
 
 	gl_FragColor= vec4(c,1.);
 }

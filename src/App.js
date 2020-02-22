@@ -32,6 +32,8 @@ var gltfLoader= new GLTFLoader();
 function datgui_add(ref, name, min,max){ gui.add(     ref, 'value', min,max).name(name); }
 function datgui_addColor(ref, name){     gui.addColor(ref, 'value').name(name); }
 
+function log(x){ console.log(x); }
+
 /*proxy used for values that dont use the gui's value directly, such as uniforms
 since the gui will feedback if a transform is applied directly to its reference
 
@@ -44,7 +46,7 @@ function datgui_addProxy(ref, name, min,max, lambda){
 	gui.add(proxy,'value',min,max).onChange(assign).name(name);
 }
 
-var w= NaN, h= NaN;//of canvas == default framebuffer
+var w= 1, h= 1;//of canvas == default framebuffer
 
 async function main(){
 	camera = new THREE.PerspectiveCamera(60, 1., 0.001,10);
@@ -66,9 +68,9 @@ async function main(){
 		//hdr framebuffer does this stuff
 		alpha:false,
 		antialias: false,
-		//depth: false,
-		//desynchronized: true,
-		//preserveDrawingBuffer: true,
+		depth: false,
+		desynchronized: true,
+		preserveDrawingBuffer: true,
 	});
 
 	renderer= new THREE.WebGLRenderer({canvas: canvas, context: gl});
@@ -78,8 +80,9 @@ async function main(){
 		format: THREE.RGBAFormat,
 		type: THREE.FloatType
 		} );
+	//targets have their own depthbuffer and stencil by default
 
-	composer= new EffectComposer(renderer);//!!,rtex);
+	composer= new EffectComposer(renderer,rtex);
 	composer.addPass(new RenderPass(scene,camera));
 	//composer.addPass(new AdaptiveToneMappingPass());//this is not very good
 	const pass_bloom= new BloomPass();
@@ -107,7 +110,7 @@ async function main(){
 				gl_FragColor= c;
 			}`
 	});
-	//!!composer.addPass(pass_tmap);
+	composer.addPass(pass_tmap);
 
 	var env_tex = new THREE.CubeTextureLoader()
 		.setPath('./environment0/')
@@ -177,7 +180,7 @@ async function main(){
 			//]
 		);
 		scene.add(diamond.mesh);
-		console.log('LOADED: GLTF');
+		log('LOADED: GLTF');
 	}
 	var meshload_promise= new Promise( resolve => gltfLoader.load('./diamond/diamond.glb',
 		mesh=>{
@@ -189,12 +192,21 @@ async function main(){
 	
 	function resize(){
 		//perhaps this should be an event which dependents register themself?
-		w= canvas.width;
-		h= canvas.height;
-		pass_bloom.setSize(w,h);
-		renderer.setSize(w,h);
-		rtex.setSize(w,h);
-		composer.setSize(w,h);
+		w= canvas.clientWidth;
+		h= canvas.clientHeight;
+		//log('afsddad')
+		//log([w,h].join())
+		//canvas.width= w;
+		//canvas.height= h;
+
+		[
+			pass_bloom,
+			renderer,
+			rtex,
+			composer
+		].map(x=>x.setSize(w,h))
+
+
 		camera.aspect= w/h;
 		camera.updateProjectionMatrix();
 	};
@@ -202,11 +214,11 @@ async function main(){
 	resize();
 
 	//finish loading
-	console.log('LOADING AWAIT')
+	log('LOADING AWAIT')
 	await Promise.all([
 		meshload_promise
 	]);
-	console.log('LOADING DONE')
+	log('LOADING DONE')
 
 	function render(){
 		var dt= clock.getDelta();
@@ -227,7 +239,9 @@ async function main(){
 
 var App= {
 	react: function(){
-		return <canvas id="canvas" style={{width: '100vw', height: '100vh'}}></canvas>;
+		return (
+			<canvas id="canvas" style={{width: '100vw', height: '100vh'}} />
+			);
 	},
 	main: main
 };
