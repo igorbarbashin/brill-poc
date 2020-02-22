@@ -60,7 +60,7 @@ async function main(){
 	const wgl2_yes= WEBGL.isWebGL2Available();
 	if(!wgl2_yes)
 		alert(WEBGL.getWebGL2ErrorMessage());
-	const canvas= document.getElement('canvas');
+	const canvas= document.getElementById('canvas');
 	const gl= canvas.getContext({
 		//hdr framebuffer does this stuff
 		alpha:false,
@@ -218,7 +218,7 @@ async function main(){
 
 function App(){
 	useEffect(()=>{main();});
-	return <canvas style="width: 100vw; height: 100vh" />;
+	return <canvas id="canvas" style={{width: '100vw', height: '100vh'}}></canvas>;
 };
 
 
