@@ -191,7 +191,6 @@ async function main(){
 
 	
 	function resize(){
-		//perhaps this should be an event which dependents register themself?
 		w= canvas.clientWidth;
 		h= canvas.clientHeight;
 		//log('afsddad')
@@ -200,6 +199,7 @@ async function main(){
 		//canvas.height= h;
 
 		[
+			//perhaps this should be an event which dependents register themself?
 			pass_bloom,
 			renderer,
 			rtex,

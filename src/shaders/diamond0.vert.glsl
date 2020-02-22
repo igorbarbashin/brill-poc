@@ -13,12 +13,12 @@ void main() {
 	vec4 mv= modelViewMatrix*vec4(oP, 1.);
 
 	vN= normalMatrix*normal;
-	wN= vN;
+	wN= (modelMatrix*vec4(normal,1.)).xyz;//TODO orthoabnormal case fails
 
 	vec4 mvp= projectionMatrix*mv;
 
 	vV= vec3(mvp.xy/mvp.w, 1.).xzy;
 	wV= m.xyz-cameraPosition;
-	
+
 	gl_Position= mvp; 
 }
