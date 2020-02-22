@@ -111,9 +111,12 @@ float prod( vec4 v){ return v.x*v.y*v.z*v.w;}
 
 
 
+
+
 uniform samplerCube env;
 
 uniform vec3 color;
+uniform float roughness;
 uniform float reflectance;
 uniform float transmittance;
 uniform float metal;
@@ -126,15 +129,18 @@ uniform float sparkle_mag;
 uniform float glow;
 
 float nse(vec3 p){
-	float G= 4.e4;
-	p= floor(p*G)/G;//lowpass
-
-	float v;
-	p*= 128.*PHI;
-	v+= fract(512.*PHI*tan(p.x));
-	v+= fract(512.*PHI*tan(p.y));
-	v+= fract(512.*PHI*tan(p.z));
-    return v;
+	float F= 1.e4;//lowpass freq
+	//float nyquist= max(dFdx(p.x),dFdy(p.y));
+	//F
+	float acc= 0.;
+	//sparkle rate intentionally introduces subpixel alias
+	acc= lerp(
+		fract(sum(512.*PHI*tan(128.*floor(p*F    )/F    ))),
+		fract(sum(512.*PHI*tan(128.*floor(p*F*32.)/F/32.))),
+		sparkle_rate
+		);
+	acc/= (1.+sparkle_rate);//*3.;//normalize
+    return acc;
     //todo better
 }
 
@@ -159,16 +165,26 @@ void main () {
 	S= gauss(S,sparkle_abundance);
 	S*= sparkle_mag;
 
-	
+	vec3 c;
+
 	//reflection
 	vec3 cR= textureCube(env, R).rgb;
-	//sparkle
-	//approx using the same sample as flat reflection
-	cR= cR*reflectance + cR*S;
+	c+= cR*reflectance;
+	
 	//refraction
 	vec3 cI= textureCube(env, I).rgb*transmittance;
-	vec3 cRI= cR+cI;
-	vec3 c= mix( cRI, cRI*color/255., vec3(metal));
+	c+= cI*transmittance;
+
+	//sparkle
+	//approx the environment using samples already taken
+	c+= (cR+cI)*.5*S;
+
+	//metallness
+	//affects all color additions above
+	c= mix( c, c*color/255., vec3(metal));
+
+	//glow
 	c+= glow*color/255.;
+
 	gl_FragColor= vec4(c,1.);
 }

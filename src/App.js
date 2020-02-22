@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import * as THREE from 'three';
+import { WEBGL } from 'three/examples/jsm/WebGL.js';
 import {EffectComposer}          from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import {RenderPass}              from 'three/examples/jsm/postprocessing/RenderPass.js';
 import {BloomPass}               from './BloomPass.js';
@@ -28,15 +29,15 @@ var clock = new THREE.Clock();
 var gltfLoader= new GLTFLoader();
 
 //sugar
-function datgui_add(     ref, name, min,max){ gui.add(     ref, 'value', min,max).name(name); }
-function datgui_addColor(ref, name, min,max){ gui.addColor(ref, 'value', min,max).name(name); }
+function datgui_add(ref, name, min,max){ gui.add(     ref, 'value', min,max).name(name); }
+function datgui_addColor(ref, name){     gui.addColor(ref, 'value').name(name); }
 
 /*proxy used for values that dont use the gui's value directly, such as uniforms
 since the gui will feedback if a transform is applied directly to its reference
 
 datgui is not compatible with setters! (which is dumb)
 'value' fields are a just a hack to make reference types*/
-function datgui_proxy(ref, name, min,max, lambda){
+function datgui_addProxy(ref, name, min,max, lambda){
 	const proxy= { value: ref.value };
 	function assign(){ ref.value= lambda(proxy.value); }
 	assign();//ref is initialized to gui-space not lambda-space, reverse that
@@ -56,9 +57,21 @@ async function main(){
 
 	scene = new THREE.Scene();
 
+	const wgl2_yes= WEBGL.isWebGL2Available();
+	if(!wgl2_yes)
+		alert(WEBGL.getWebGL2ErrorMessage());
+	const canvas= document.getElement('canvas');
+	const gl= canvas.getContext({
+		//hdr framebuffer does this stuff
+		alpha:false,
+		antialias: false,
+		depth: true,
+		desynchronized: true,
+		preserveDrawingBuffer: true,
+	});
+
+	renderer= new THREE.WebGLRenderer({canvas: canvas, context: gl});
 	var rtex= new THREE.WebGLRenderTarget( w,h, { minFilter: THREE.NearestFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat, type: THREE.FloatType } );
-	renderer= new THREE.WebGLRenderer({antialias: true});
-	document.body.appendChild(renderer.domElement);
 
 	composer= new EffectComposer(renderer,rtex);
 	composer.addPass(new RenderPass(scene,camera));
@@ -109,26 +122,28 @@ async function main(){
 		exposure: {value: 1.},
 		color:{value: new THREE.Color(0xffffff)},
 		metal:            {value:   .1},
+		roughness:        {value:   .5},
 		reflectance:      {value:   .5},
 		transmittance:    {value:   1.},
 		ior:              {value:   2.},
 		sparkle_abundance:{value:  .7},
 		sparkle_rate:     {value:   .5},
-		sparkle_mag:      {value: 512.},
+		sparkle_mag:      {value: 64.},
 		glow:             {value:   .1}
 	};
 	gui = new dat.GUI();
 
-	datgui_proxy(pass_tmap.uniforms.exposure,     'exposure', -2,7, Math.exp);
+	datgui_addProxy(pass_tmap.uniforms.exposure,  'exposure', -2,7, Math.exp);
 	datgui_addColor(diamond.uniforms.color,       'color');
-	datgui_add(diamond.uniforms.metal,            'metallicity',         0,1);
-	datgui_add(diamond.uniforms.reflectance,      'reflectance',         0,1);
-	datgui_add(diamond.uniforms.transmittance,    'transmittance',       0,1);
-	datgui_add(diamond.uniforms.ior,              'refraction',         -5,5);
-	datgui_proxy(diamond.uniforms.sparkle_abundance,'sparkle abundance', 0,1, x=>Math.pow(x,4.) );
-	datgui_add(diamond.uniforms.sparkle_rate,     'sparkle rate',       0,1);
-	datgui_add(diamond.uniforms.sparkle_mag,      'sparkle mag',        0,1024);
-	datgui_add(diamond.uniforms.glow,             'glow',                0,8);
+	datgui_add(diamond.uniforms.metal,            'metallicity',  0,1);
+	datgui_add(diamond.uniforms.roughness,        'roughness',    0,1);
+	datgui_add(diamond.uniforms.reflectance,      'reflectance',  0,1);
+	datgui_add(diamond.uniforms.transmittance,    'transmittance',0,1);
+	datgui_add(diamond.uniforms.ior,              'refraction',  -5,5);
+	datgui_addProxy(diamond.uniforms.sparkle_abundance,'sparkle abundance', 0,1, x=>Math.pow(x,4.));
+	datgui_add(diamond.uniforms.sparkle_rate,     'sparkle rate', 0,1);
+	datgui_add(diamond.uniforms.sparkle_mag,      'sparkle mag',  0,512);
+	datgui_add(diamond.uniforms.glow,             'glow',         0,8);
 	
 
 
@@ -167,8 +182,8 @@ async function main(){
 
 		
 	var resize= function () {
-		const w= window.innerWidth;
-		const h= window.innerHeight;
+		const w= canvas.innerWidth;
+		const h= canvas.innerHeight;
 		pass_bloom.setSize(w,h);
 		renderer.setSize(w,h);
 		composer.setSize(w,h);
@@ -202,9 +217,8 @@ async function main(){
 }
 
 function App(){
-	//i dont understand this
 	useEffect(()=>{main();});
-	return <></>;
+	return <canvas style="width: 100vw; height: 100vh" />;
 };
 
 
