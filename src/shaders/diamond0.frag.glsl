@@ -126,9 +126,14 @@ uniform float sparkle_mag;
 uniform float glow;
 
 float nse(vec3 p){
-	//max(dFdx(sp),dFdy(sp)); ext disabled??
+	float G= 4.e4;
+	p= floor(p*G)/G;//lowpass
+
 	float v;
-	v= fract(128.*tan((p.x+p.y+p.z)*128.*PHI));
+	p*= 128.*PHI;
+	v+= fract(512.*PHI*tan(p.x));
+	v+= fract(512.*PHI*tan(p.y));
+	v+= fract(512.*PHI*tan(p.z));
     return v;
     //todo better
 }
@@ -146,6 +151,8 @@ void main () {
 	vec3 nN= normalize(N);
 	vec3 R= reflect(nV,nN);
 	vec3 I= refract(nV,nN,ior);
+
+	//nN+= rough;
 
 	float S;
 	S= nse(O);

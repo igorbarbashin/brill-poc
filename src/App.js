@@ -2,11 +2,13 @@ import React, { useEffect } from 'react';
 import * as THREE from 'three';
 import {EffectComposer}          from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import {RenderPass}              from 'three/examples/jsm/postprocessing/RenderPass.js';
-import {UnrealBloomPass}         from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import {BloomPass}               from './BloomPass.js';
 import {AfterimagePass}          from 'three/examples/jsm/postprocessing/AfterimagePass.js';
 import {AdaptiveToneMappingPass} from 'three/examples/jsm/postprocessing/AdaptiveToneMappingPass.js';
 import {ShaderPass}              from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import {CopyShader}              from "three/examples/jsm/shaders/CopyShader.js";
+import {VerticalBlurShader}      from "three/examples/jsm/shaders/VerticalBlurShader.js";
+import {HorizontalBlurShader}    from "three/examples/jsm/shaders/HorizontalBlurShader.js";
 import {ColorCorrectionShader}   from 'three/examples/jsm/shaders/ColorCorrectionShader.js';
 import {GammaCorrectionShader}   from 'three/examples/jsm/shaders/GammaCorrectionShader.js';
 import {GLTFLoader}              from 'three/examples/jsm/loaders/GLTFLoader';
@@ -25,6 +27,22 @@ var camera, scene, renderer, composer, controls, gui, diamond;
 var clock = new THREE.Clock();
 var gltfLoader= new GLTFLoader();
 
+//sugar
+function datgui_add(     ref, name, min,max){ gui.add(     ref, 'value', min,max).name(name); }
+function datgui_addColor(ref, name, min,max){ gui.addColor(ref, 'value', min,max).name(name); }
+
+/*proxy used for values that dont use the gui's value directly, such as uniforms
+since the gui will feedback if a transform is applied directly to its reference
+
+datgui is not compatible with setters! (which is dumb)
+'value' fields are a just a hack to make reference types*/
+function datgui_proxy(ref, name, min,max, lambda){
+	const proxy= { value: ref.value };
+	function assign(){ ref.value= lambda(proxy.value); }
+	assign();//ref is initialized to gui-space not lambda-space, reverse that
+	gui.add(proxy,'value',min,max).onChange(assign).name(name);
+}
+
 async function main(){
 	const w= window.innerWidth;
 	const h= window.innerHeight;
@@ -40,13 +58,13 @@ async function main(){
 
 	var rtex= new THREE.WebGLRenderTarget( w,h, { minFilter: THREE.NearestFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat, type: THREE.FloatType } );
 	renderer= new THREE.WebGLRenderer({antialias: true});
-	console.log(renderer)
 	document.body.appendChild(renderer.domElement);
 
 	composer= new EffectComposer(renderer,rtex);
 	composer.addPass(new RenderPass(scene,camera));
-	//composer.addPass(new AdaptiveToneMappingPass());
-	composer.addPass(new UnrealBloomPass(1024, 10, 16, 1.));//resolution, strength, radius, threshold
+	//composer.addPass(new AdaptiveToneMappingPass());//this is not very good
+	const pass_bloom= new BloomPass();
+	composer.addPass(pass_bloom);
 	const pass_tmap= new ShaderPass({
 		uniforms: {
 			"tDiffuse": { value: null },
@@ -66,7 +84,7 @@ async function main(){
 				vec4 c= texture2D(tDiffuse, vUv);
 				c.rgb= ReinhardToneMapping(c.rgb*exposure);
 				//c.rgb= pow(c.rgb, vec3(2.2));//gamma
-				//im not sure if gamma is being handled auto or if reinhard makes it look good
+				//im not sure if gamma is being handled auto or if reinhard does that
 				gl_FragColor= c;
 			}`
 	});
@@ -83,40 +101,34 @@ async function main(){
 			'nz.png'
 		]);
 	//env_tex.encoding= THREE.sRGBEncoding;//this should be srgb, but looks bad with reinhard
-		console.log(env_tex)
 	scene.background= env_tex
 
 	diamond= {};
-	const exposure= {value: 1.};
-	const expfun= Math.exp;
 	diamond.uniforms= {
 		env: env_tex,
-		exposure: {value: expfun(exposure)},
-		color: {value: new THREE.Color(0xffffff)},
-		metal: {value: 0.},
-		reflectance: {value: .5},
-		transmittance: {value: 1.},
-		ior: {value: 2.},
-		sparkle_abundance: {value: .05},
-		sparkle_rate: {value: 1.},
-		sparkle_mag: {value: 10024.},
-		glow: {value: .1}
+		exposure: {value: 1.},
+		color:{value: new THREE.Color(0xffffff)},
+		metal:            {value:   .1},
+		reflectance:      {value:   .5},
+		transmittance:    {value:   1.},
+		ior:              {value:   2.},
+		sparkle_abundance:{value:  .7},
+		sparkle_rate:     {value:   .5},
+		sparkle_mag:      {value: 512.},
+		glow:             {value:   .1}
 	};
 	gui = new dat.GUI();
 
-	//datgui does not work with setters
-	gui.add(exposure,           'value',  -2, 7).name('exposure').onChange(function(){
-		pass_tmap.uniforms.exposure.value= expfun(exposure.value);
-	});
-	gui.addColor(diamond.uniforms.color,        'value'        ).name('color');
-	gui.add(diamond.uniforms.metal,             'value',  0,  1).name('metallicity');
-	gui.add(diamond.uniforms.reflectance,       'value',  0,  1).name('reflectance');
-	gui.add(diamond.uniforms.transmittance,     'value',  0,  1).name('transmittance');
-	gui.add(diamond.uniforms.ior,               'value', -5,  5).name('refraction');
-	gui.add(diamond.uniforms.sparkle_abundance, 'value',  0,  1).name('sparkle abundance');
-	gui.add(diamond.uniforms.sparkle_rate,      'value',  0,  1).name('sparkle rate');
-	gui.add(diamond.uniforms.sparkle_mag,       'value',  0,  1024).name('sparkle mag');
-	gui.add(diamond.uniforms.glow,              'value',  0,  8).name('glow');
+	datgui_proxy(pass_tmap.uniforms.exposure,     'exposure', -2,7, Math.exp);
+	datgui_addColor(diamond.uniforms.color,       'color');
+	datgui_add(diamond.uniforms.metal,            'metallicity',         0,1);
+	datgui_add(diamond.uniforms.reflectance,      'reflectance',         0,1);
+	datgui_add(diamond.uniforms.transmittance,    'transmittance',       0,1);
+	datgui_add(diamond.uniforms.ior,              'refraction',         -5,5);
+	datgui_proxy(diamond.uniforms.sparkle_abundance,'sparkle abundance', 0,1, x=>Math.pow(x,4.) );
+	datgui_add(diamond.uniforms.sparkle_rate,     'sparkle rate',       0,1);
+	datgui_add(diamond.uniforms.sparkle_mag,      'sparkle mag',        0,1024);
+	datgui_add(diamond.uniforms.glow,             'glow',                0,8);
 	
 
 
@@ -136,7 +148,6 @@ async function main(){
 	});
 
 	function meshload(gltf){
-		console.log(gltf);
 		diamond.mesh= new THREE.Mesh(
 			gltf.scene.children[0].geometry,
 			//[
@@ -153,12 +164,12 @@ async function main(){
 			resolve();
 		})
 	);
-	console.log('PROMISED');
 
 		
 	var resize= function () {
 		const w= window.innerWidth;
 		const h= window.innerHeight;
+		pass_bloom.setSize(w,h);
 		renderer.setSize(w,h);
 		composer.setSize(w,h);
 		camera.aspect= w/h;
@@ -173,12 +184,12 @@ async function main(){
 		meshload_promise
 	]);
 
-	console.log(scene)
 	function render(t){
 		var dt= clock.getDelta();
 
-		diamond.mesh.rotation.x += 0.0005;
-		diamond.mesh.rotation.y += 0.0005;
+		//diamond.mesh.rotation.x += 0.0005;
+		//diamond.mesh.rotation.y += 0.0005;
+		diamond.mesh.rotation.x= -Math.PI/2.;
 		diamond.mesh.rotation.z += 0.0015;
 
 
@@ -192,10 +203,7 @@ async function main(){
 
 function App(){
 	//i dont understand this
-	useEffect(function(){
-		//i have no idea why this needs wrapped
-		main();
-	});
+	useEffect(()=>{main();});
 	return <></>;
 };
 
