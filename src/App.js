@@ -44,14 +44,10 @@ function datgui_addProxy(ref, name, min,max, lambda){
 	gui.add(proxy,'value',min,max).onChange(assign).name(name);
 }
 
+var w= NaN, h= NaN;//of canvas == default framebuffer
+
 async function main(){
-	const w= window.innerWidth;
-	const h= window.innerHeight;
-	camera = new THREE.PerspectiveCamera(
-		60,
-		w/h,
-		0.001,10
-	);
+	camera = new THREE.PerspectiveCamera(60, 1., 0.001,10);
 	camera.position.z = 0.6;
 	controls = new OrbitControls(camera);
 
@@ -60,28 +56,38 @@ async function main(){
 	const wgl2_yes= WEBGL.isWebGL2Available();
 	if(!wgl2_yes)
 		alert(WEBGL.getWebGL2ErrorMessage());
+		/*todo elegantly disable features, currently crashes if wgl1
+		known wgl2 features in use
+			shader dFdxy
+		*/
+
 	const canvas= document.getElementById('canvas');
-	const gl= canvas.getContext({
+	const gl= canvas.getContext(wgl2_yes?'webgl2':'webgl',{
 		//hdr framebuffer does this stuff
 		alpha:false,
 		antialias: false,
-		depth: true,
-		desynchronized: true,
-		preserveDrawingBuffer: true,
+		//depth: false,
+		//desynchronized: true,
+		//preserveDrawingBuffer: true,
 	});
 
 	renderer= new THREE.WebGLRenderer({canvas: canvas, context: gl});
-	var rtex= new THREE.WebGLRenderTarget( w,h, { minFilter: THREE.NearestFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat, type: THREE.FloatType } );
+	var rtex= new THREE.WebGLRenderTarget( w,h, {
+		minFilter: THREE.NearestFilter,
+		magFilter: THREE.LinearFilter,
+		format: THREE.RGBAFormat,
+		type: THREE.FloatType
+		} );
 
-	composer= new EffectComposer(renderer,rtex);
+	composer= new EffectComposer(renderer);//!!,rtex);
 	composer.addPass(new RenderPass(scene,camera));
 	//composer.addPass(new AdaptiveToneMappingPass());//this is not very good
 	const pass_bloom= new BloomPass();
-	composer.addPass(pass_bloom);
+	//!!composer.addPass(pass_bloom);
 	const pass_tmap= new ShaderPass({
 		uniforms: {
-			"tDiffuse": { value: null },
-			"exposure": { value: 1. }
+			tDiffuse: { value: null },
+			exposure: { value: 1. }
 		},
 		vertexShader: `
 			varying vec2 vUv;
@@ -101,7 +107,7 @@ async function main(){
 				gl_FragColor= c;
 			}`
 	});
-	composer.addPass(pass_tmap);
+	//!!composer.addPass(pass_tmap);
 
 	var env_tex = new THREE.CubeTextureLoader()
 		.setPath('./environment0/')
@@ -171,7 +177,7 @@ async function main(){
 			//]
 		);
 		scene.add(diamond.mesh);
-		console.log('GLTF LOADED');
+		console.log('LOADED: GLTF');
 	}
 	var meshload_promise= new Promise( resolve => gltfLoader.load('./diamond/diamond.glb',
 		mesh=>{
@@ -180,12 +186,14 @@ async function main(){
 		})
 	);
 
-		
-	var resize= function () {
-		const w= canvas.innerWidth;
-		const h= canvas.innerHeight;
+	
+	function resize(){
+		//perhaps this should be an event which dependents register themself?
+		w= canvas.width;
+		h= canvas.height;
 		pass_bloom.setSize(w,h);
 		renderer.setSize(w,h);
+		rtex.setSize(w,h);
 		composer.setSize(w,h);
 		camera.aspect= w/h;
 		camera.updateProjectionMatrix();
@@ -198,8 +206,9 @@ async function main(){
 	await Promise.all([
 		meshload_promise
 	]);
+	console.log('LOADING DONE')
 
-	function render(t){
+	function render(){
 		var dt= clock.getDelta();
 
 		//diamond.mesh.rotation.x += 0.0005;
@@ -213,13 +222,14 @@ async function main(){
 
 		requestAnimationFrame(render);
 	};
-	render(0);
+	render();
 }
 
-function App(){
-	useEffect(()=>{main();});
-	return <canvas id="canvas" style={{width: '100vw', height: '100vh'}}></canvas>;
+var App= {
+	react: function(){
+		return <canvas id="canvas" style={{width: '100vw', height: '100vh'}}></canvas>;
+	},
+	main: main
 };
-
 
 export default App;
