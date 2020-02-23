@@ -129,7 +129,6 @@ uniform float sparkle_mag;
 uniform float glow;
 uniform float iridescence;
 uniform float chroma;
-
 uniform float inversion;
 
 float nse(vec3 p){
@@ -191,6 +190,8 @@ void main () {
 	//affects all color additions above
 	c= mix( c, c*color/255., vec3(metal));
 
+	c= lerp(c,normalize(c),inversion);
+
 	//glow
 	c+= glow*color/255.;
 
@@ -198,7 +199,7 @@ void main () {
 	//c= nN;
 	//c= nV;
 	//c= R;
-	c= textureCube(env, R).rgb+.2;
+	//c= textureCube(env, R).rgb+.2;
 	//c= nmapu(c);
 
 	gl_FragColor= vec4(c,1.);

@@ -123,7 +123,19 @@ async function main(){
 			'nz.png'
 		]);
 	//env_tex.encoding= THREE.sRGBEncoding;//this should be srgb, but looks bad with reinhard
-	scene.background= env_tex
+	scene.background= env_tex;
+
+	var fsq= new THREE.Mesh(
+		new THREE.PlaneGeometry(2,2),
+		new THREE.ShaderMaterial({
+			uniforms: { mul: {value: -2.} },
+			vertexShader:"void main(){ gl_Position= vec4(position, 1.0); }",
+			fragmentShader:"uniform float mul; void main(){ gl_FragColor= vec4(mul); }",
+			blending: THREE.MultiplyBlending,
+			depthWrite: false,
+			depthTest: false,
+		}));
+	scene.add(fsq);
 
 	diamond= {};
 	diamond.uniforms= {
@@ -146,6 +158,7 @@ async function main(){
 	gui = new dat.GUI();
 
 	datgui_addProxy(pass_tmap.uniforms.exposure,  'exposure', -2,7, Math.exp);
+	datgui_addProxy(fsq.material.uniforms.mul,  'background_exposure', -8,7, Math.exp);
 	datgui_addColor(diamond.uniforms.color,       'color');
 	datgui_add(diamond.uniforms.metal,            'metallicity',  0,1);
 	datgui_add(diamond.uniforms.blur,        'blur',    0,6);
@@ -158,7 +171,7 @@ async function main(){
 	datgui_add(diamond.uniforms.glow,             'glow',         0,8);
 	datgui_add(diamond.uniforms.iridescence,             'iridescence',         0,1);
 	datgui_add(diamond.uniforms.chroma,             'chroma',         0,1);
-	datgui_add(diamond.uniforms.inversion,             'inversion',         0,1);
+	datgui_add(diamond.uniforms.inversion,             'inversion',         0,4);
 	
 
 
