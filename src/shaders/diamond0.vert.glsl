@@ -5,7 +5,11 @@ varying vec3 wN;//world normal
 varying vec3 vV;//view view direction
 varying vec3 wV;//world view direction
 
-void main() {
+void main(){
+	mat3 worldNormalMatrix= mat3(modelMatrix);
+	//bug: orthoabnormal model matrix causes direction vector skew
+	//nonuniform scale models are very rare though
+
 	oP= position;
 
 	vec4 m= modelMatrix*vec4(oP, 1.);
@@ -13,12 +17,17 @@ void main() {
 	vec4 mv= modelViewMatrix*vec4(oP, 1.);
 
 	vN= normalMatrix*normal;
-	wN= (modelMatrix*vec4(normal,1.)).xyz;//TODO orthoabnormal case fails
+	wN= worldNormalMatrix*normal;
 
 	vec4 mvp= projectionMatrix*mv;
 
-	vV= vec3(mvp.xy/mvp.w, 1.).xzy;
+	vV= vec3(mvp.xy/mvp.w, 1.);//.xzy;
 	wV= m.xyz-cameraPosition;
+
+	//fix worldspace handedness for cubemap
+	wP.x*= -1.;
+	wN.x*= -1.;
+	wV.x*= -1.;
 
 	gl_Position= mvp; 
 }

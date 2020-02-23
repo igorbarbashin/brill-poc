@@ -116,7 +116,7 @@ float prod( vec4 v){ return v.x*v.y*v.z*v.w;}
 uniform samplerCube env;
 
 uniform vec3 color;
-uniform float roughness;
+uniform float blur;
 uniform float reflectance;
 uniform float transmittance;
 uniform float metal;
@@ -127,6 +127,10 @@ uniform float sparkle_rate;
 uniform float sparkle_mag;
 
 uniform float glow;
+uniform float iridescence;
+uniform float chroma;
+
+uniform float inversion;
 
 float nse(vec3 p){
 	float F= 1.e4;//lowpass freq
@@ -162,6 +166,7 @@ void main () {
 	vec3 I= refract(nV,nN,ior);
 
 	//nN+= rough;
+	float rough_mip= blur;
 
 	float S;
 	S= nse(oP);
@@ -171,11 +176,11 @@ void main () {
 	vec3 c;
 
 	//reflection
-	vec3 cR= textureCube(env, R).rgb;
+	vec3 cR= textureCube(env, R, rough_mip).rgb;
 	c+= cR*reflectance;
 	
 	//refraction
-	vec3 cI= textureCube(env, I).rgb*transmittance;
+	vec3 cI= textureCube(env, I, rough_mip).rgb*transmittance;
 	c+= cI*transmittance;
 
 	//sparkle
@@ -192,7 +197,9 @@ void main () {
 	//debug
 	//c= nN;
 	//c= nV;
-	c= nmapu(c);
+	//c= R;
+	c= textureCube(env, R).rgb+.2;
+	//c= nmapu(c);
 
 	gl_FragColor= vec4(c,1.);
 }

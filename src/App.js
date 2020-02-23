@@ -131,21 +131,24 @@ async function main(){
 		exposure: {value: 1.},
 		color:{value: new THREE.Color(0xffffff)},
 		metal:            {value:   .1},
-		roughness:        {value:   .5},
+		blur:             {value:   0.},
 		reflectance:      {value:   .5},
 		transmittance:    {value:   1.},
 		ior:              {value:   2.},
 		sparkle_abundance:{value:  .7},
 		sparkle_rate:     {value:   .5},
-		sparkle_mag:      {value: 64.},
-		glow:             {value:   .1}
+		sparkle_mag:      {value: 1.},
+		glow:             {value:   .1},
+		iridescence:      {value: 1.},
+		chroma:           {value: 1.},
+		inversion:           {value: 1.},
 	};
 	gui = new dat.GUI();
 
 	datgui_addProxy(pass_tmap.uniforms.exposure,  'exposure', -2,7, Math.exp);
 	datgui_addColor(diamond.uniforms.color,       'color');
 	datgui_add(diamond.uniforms.metal,            'metallicity',  0,1);
-	datgui_add(diamond.uniforms.roughness,        'roughness',    0,1);
+	datgui_add(diamond.uniforms.blur,        'blur',    0,6);
 	datgui_add(diamond.uniforms.reflectance,      'reflectance',  0,1);
 	datgui_add(diamond.uniforms.transmittance,    'transmittance',0,1);
 	datgui_add(diamond.uniforms.ior,              'refraction',  -5,5);
@@ -153,6 +156,9 @@ async function main(){
 	datgui_add(diamond.uniforms.sparkle_rate,     'sparkle rate', 0,1);
 	datgui_add(diamond.uniforms.sparkle_mag,      'sparkle mag',  0,512);
 	datgui_add(diamond.uniforms.glow,             'glow',         0,8);
+	datgui_add(diamond.uniforms.iridescence,             'iridescence',         0,1);
+	datgui_add(diamond.uniforms.chroma,             'chroma',         0,1);
+	datgui_add(diamond.uniforms.inversion,             'inversion',         0,1);
 	
 
 
