@@ -151,7 +151,7 @@ async function main(){
 		sparkle_rate:     {value:   .5},
 		sparkle_mag:      {value: 1.},
 		glow:             {value:   .1},
-		iridescence:      {value: 1.},
+		iridescence:      {value: 4.},
 		chroma:           {value: 1.},
 		inversion:           {value: 1.},
 	};
@@ -169,7 +169,7 @@ async function main(){
 	datgui_add(diamond.uniforms.sparkle_rate,     'sparkle rate', 0,1);
 	datgui_add(diamond.uniforms.sparkle_mag,      'sparkle mag',  0,512);
 	datgui_add(diamond.uniforms.glow,             'glow',         0,8);
-	datgui_add(diamond.uniforms.iridescence,             'iridescence',         0,1);
+	datgui_add(diamond.uniforms.iridescence,             'iridescence',         0,16);
 	datgui_add(diamond.uniforms.chroma,             'chroma',         0,1);
 	datgui_add(diamond.uniforms.inversion,             'inversion',         0,4);
 	
