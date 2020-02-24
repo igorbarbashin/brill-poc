@@ -171,7 +171,7 @@ async function main(){
 	datgui_add(diamond.uniforms.sparkle_mag,      'sparkle mag',  0,512);
 	datgui_add(diamond.uniforms.glow,             'glow',         0,8);
 	datgui_add(diamond.uniforms.iridescence,             'iridescence',         0,16);
-	datgui_add(diamond.uniforms.chroma,             'chroma',         -.2,.2);//*diamond.uniforms.ior);
+	datgui_add(diamond.uniforms.chroma,             'chroma',         -.5,.5);//*diamond.uniforms.ior);
 	datgui_add(diamond.uniforms.inversion,             'inversion',         0,4);
 	datgui_addProxy(diamond.uniforms.inclusion,             'inclusion',         0,10, x=>(x/10.)*2.-1.);//[0,10]->[-1,1]
 	

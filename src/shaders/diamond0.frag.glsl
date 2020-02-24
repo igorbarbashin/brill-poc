@@ -245,7 +245,9 @@ void main () {
 	vec3 nV= normalize(wV);
 	vec3 nN= normalize(wN);
 
-	//shader appies effects progressively in a way that is highly order dependent
+	//shader appies effects progressively to a color accumulator
+	//that is, effects are highly order dependent
+	vec3 c;
 
 	//inclusion
 	//todo make a seperate geometry, this is a crude placeholder
@@ -277,7 +279,6 @@ void main () {
 	S= sparkle(oP);
 	S*= sparkle_mag;
 
-	vec3 c;
 
 	//reflection
 	vec3 R= reflect(nV,nN);
@@ -290,21 +291,24 @@ void main () {
 	vec3 cI;
 	#if ENABLE_CHROMATIC
 	vec3 Ir= refract(nV,nN,ior-chroma);
-	vec3 Ig= refract(nV,nN,ior);
+	vec3 Ig= refract(nV,nN,ior       );
 	vec3 Ib= refract(nV,nN,ior+chroma);
+	Ir+= step(-sum(Ir),0.)*R;
+	Ig+= step(-sum(Ig),0.)*R;
+	Ib+= step(-sum(Ib),0.)*R;	
 	I= Ig;
 	cI.r= textureCube(env, Ir, rough_mip).r;
 	cI.g= textureCube(env, Ig, rough_mip).g;
 	cI.b= textureCube(env, Ib, rough_mip).b;
 	#else
 	I= refract(nV,nN,ior);
+	I+= step(-sum(I),0.)*R;
 	cI= textureCube(env, I, rough_mip).rgb;
 	#endif
 	c+= cI*transmittance;
 	#endif
 
 	//iridescence, approx
-	//applies to reflection and refraction
 	float irrR= sin(iridescence*dot(nV,nN));
 	c= hsv2rgb(rgb2hsv(c)+vec3(irrR,0.,0.));
 
