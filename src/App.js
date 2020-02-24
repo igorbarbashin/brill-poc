@@ -49,7 +49,7 @@ function datgui_addProxy(ref, name, min,max, lambda){
 var w= 1, h= 1;//of canvas == default framebuffer
 
 async function main(){
-	camera = new THREE.PerspectiveCamera(60, 1., 0.001,10);
+	camera = new THREE.PerspectiveCamera(40, 1., 0.001,10);
 	camera.position.z = 0.6;
 	controls = new OrbitControls(camera);
 
@@ -154,6 +154,7 @@ async function main(){
 		iridescence:      {value: 4.},
 		chroma:           {value: 1.},
 		inversion:           {value: 1.},
+		inclusion:           {value: 1.},
 	};
 	gui = new dat.GUI();
 
@@ -172,6 +173,7 @@ async function main(){
 	datgui_add(diamond.uniforms.iridescence,             'iridescence',         0,16);
 	datgui_add(diamond.uniforms.chroma,             'chroma',         0,1);
 	datgui_add(diamond.uniforms.inversion,             'inversion',         0,4);
+	datgui_addProxy(diamond.uniforms.inclusion,             'inclusion',         0,10, x=>(x/10.)*2.-1.);//[0,10]->[-1,1]
 	
 
 

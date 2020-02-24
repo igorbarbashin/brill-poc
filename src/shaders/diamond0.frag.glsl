@@ -10,8 +10,6 @@
 #define ETA 1e-4
 #define eqf(a,b) ( abs((a)-(b))<ETA )
 #define fc (gl_FragCoord.xy)
-#define res (iResolution.xy)
-#define ires ivec2(iResolution.xy)
 #define aspect (res.x/res.y)
 #define asp aspect
 #define aspinv (1./aspect)
@@ -158,27 +156,84 @@ uniform float glow;
 uniform float iridescence;
 uniform float chroma;
 uniform float inversion;
+uniform float inclusion;
 
-float nse(vec3 p){
+vec3 lowpass(vec3 p, float f){
+	return floor(p*f)/f;
+}
+float gauss(float x, float sigma){
+	float e= x/(sigma*sigma);
+	return exp(-e*e);
+}
+float hash3i1f(ivec3 i){
+	i= ((i>>16)^i)*0x45d9f3b;
+	i= ((i>>16)^i)*0x45d9f3b;
+	return float(i.x+i.y+i.z)/float(0x7FFFFFFF);
+}
+float nse31(vec3 p){
+	return fract(sum(512.*tan(128.*p)));
+}
+vec3 nse33(vec3 p){
+	return fract(512.*tan(128.*p));
+}
+float voronoi(vec3 x){
+	//inigo quilez, 3d fork by khlor
+    ivec3 p = ivec3(floor( x ));
+    vec3  f = fract( x );
+
+    ivec3 mb;
+    vec3 mr;
+
+    float res = 8.0;
+    for( int k=-1; k<=1; k++ )
+    for( int j=-1; j<=1; j++ )
+    for( int i=-1; i<=1; i++ )
+    {
+        ivec3 b = ivec3(i,j,k);
+        vec3  r = vec3(b) + hash3i1f(p+b)-f;
+        float d = dot(r,r);
+
+        if( d < res )
+        {
+            res = d;
+            mr = r;
+            mb = b;
+        }
+    }
+
+    res = 8.0;
+    for( int k=-2; k<=2; k++ )
+    for( int j=-2; j<=2; j++ )
+    for( int i=-2; i<=2; i++ )
+    {
+        ivec3 b = mb + ivec3(i,j,k);
+        vec3  r = vec3(b) + hash3i1f(p+b) - f;
+        float d = dot(0.5*(mr+r), normalize(r-mr));
+
+        res = min( res, d );
+    }
+
+    return res;
+}
+
+
+float sparkle(vec3 p){
 	float F= 1.e4;//lowpass freq
 	//float nyquist= max(dFdx(p.x),dFdy(p.y));
 	//F
 	float acc= 0.;
 	//sparkle rate intentionally introduces subpixel alias
 	acc= lerp(
-		fract(sum(512.*PHI*tan(128.*floor(p*F    )/F    ))),
-		fract(sum(512.*PHI*tan(128.*floor(p*F*32.)/F/32.))),
+		nse31(lowpass(p,F)),
+		nse31(lowpass(p,F*32.)),
 		sparkle_rate
 		);
 	acc/= (1.+sparkle_rate);//*3.;//normalize
+	acc= gauss(acc,sparkle_abundance);
     return acc;
     //todo better
 }
 
-float gauss(float x, float sigma){
-	float e= x/(sigma*sigma);
-	return exp(-e*e);
-}
 
 varying vec3 oP;//object vert position
 varying vec3 wP;//world position
@@ -189,24 +244,47 @@ varying vec3 wV;//world view direction
 void main () {
 	vec3 nV= normalize(wV);
 	vec3 nN= normalize(wN);
-	vec3 R= reflect(nV,nN);
-	vec3 I= refract(nV,nN,ior);
+
+	//inclusion
+	//todo make a seperate geometry, this is a crude placeholder
+	//inclusions are easily more complex than the outer gem
+	vec3 incls;
+	{	
+		vec3 p= oP*469.;
+		float f= voronoi(p);
+		vec3 ddf= vec3(//numerical derivative
+			voronoi(p+vec3(ETA,0.,0.)),
+			voronoi(p+vec3(0.,ETA,0.)),
+			voronoi(p+vec3(0.,0.,ETA))
+			);
+		incls= (ddf-f)/ETA;
+		//incls= 1.-incls;
+		//incls*= pow( sat( 1.-voronoi(p/16.) ), nmaps(inclusion));
+		incls*= sat(-voronoi(p/16.)+inclusion);
+	}
+	nN+= (nN+incls)/2.;
+	nN= normalize(nN);
+
 
 	//nN+= rough;
 	float rough_mip= blur;
 
+
+
 	float S;
-	S= nse(oP);
-	S= gauss(S,sparkle_abundance);
+	S= sparkle(oP);
 	S*= sparkle_mag;
 
 	vec3 c;
 
+
 	//reflection
+	vec3 R= reflect(nV,nN);
 	vec3 cR= textureCube(env, R, rough_mip).rgb;
 	c+= cR*reflectance;
 	
 	//refraction
+	vec3 I= refract(nV,nN,ior);
 	vec3 cI= textureCube(env, I, rough_mip).rgb*transmittance;
 	c+= cI*transmittance;
 
@@ -232,7 +310,9 @@ void main () {
 	//c= nV;
 	//c= R;
 	//c= textureCube(env, R).rgb+.2;
+	//c= incls;
 	//c= nmapu(c);
+
 
 	gl_FragColor= vec4(c,1.);
 }
