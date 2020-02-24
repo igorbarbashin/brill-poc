@@ -245,6 +245,8 @@ void main () {
 	vec3 nV= normalize(wV);
 	vec3 nN= normalize(wN);
 
+	//shader appies effects progressively in a way that is highly order dependent
+
 	//inclusion
 	//todo make a seperate geometry, this is a crude placeholder
 	//inclusions are easily more complex than the outer gem
@@ -284,11 +286,25 @@ void main () {
 	c+= cR*reflectance;
 	
 	//refraction
-	vec3 I= refract(nV,nN,ior);
-	vec3 cI= textureCube(env, I, rough_mip).rgb*transmittance;
-	c+= cI*transmittance;
+	vec3 I;
+	vec3 cI;
+	//!!#
+	#ifdef ENABLE_CHROMATIC
+	vec3 Ir= refract(nV,nN,ior-chroma);
+	vec3 Ig= refract(nV,nN,ior);
+	vec3 Ib= refract(nV,nN,ior+chroma);
+	I= Ig;
+	cI.r= textureCube(env, Ir, rough_mip).r;
+	cI.g= textureCube(env, Ig, rough_mip).g;
+	cI.b= textureCube(env, Ib, rough_mip).b;
+	#else
+	I= refract(nV,nN,ior);
+	cI= textureCube(env, I, rough_mip).rgb;
+	#endif
+	c+= cI*transmittance;	
 
 	//iridescence, approx
+	//applies to reflection and refraction
 	float irrR= sin(iridescence*dot(nV,nN));
 	c= hsv2rgb(rgb2hsv(c)+vec3(irrR,0.,0.));
 
@@ -311,6 +327,8 @@ void main () {
 	//c= R;
 	//c= textureCube(env, R).rgb+.2;
 	//c= incls;
+	//c= cI;
+	//c= Ir;
 	//c= nmapu(c);
 
 

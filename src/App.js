@@ -151,10 +151,10 @@ async function main(){
 		sparkle_rate:     {value:   .5},
 		sparkle_mag:      {value: 1.},
 		glow:             {value:   .1},
-		iridescence:      {value: 4.},
+		iridescence:      {value: 0.},
 		chroma:           {value: 1.},
-		inversion:           {value: 1.},
-		inclusion:           {value: 1.},
+		inversion:           {value: 0.},
+		inclusion:           {value: 4.},
 	};
 	gui = new dat.GUI();
 
@@ -171,7 +171,7 @@ async function main(){
 	datgui_add(diamond.uniforms.sparkle_mag,      'sparkle mag',  0,512);
 	datgui_add(diamond.uniforms.glow,             'glow',         0,8);
 	datgui_add(diamond.uniforms.iridescence,             'iridescence',         0,16);
-	datgui_add(diamond.uniforms.chroma,             'chroma',         0,1);
+	datgui_addProxy(diamond.uniforms.chroma,             'chroma',         -1,1, x=>x);//*diamond.uniforms.ior);
 	datgui_add(diamond.uniforms.inversion,             'inversion',         0,4);
 	datgui_addProxy(diamond.uniforms.inclusion,             'inclusion',         0,10, x=>(x/10.)*2.-1.);//[0,10]->[-1,1]
 	
@@ -179,14 +179,23 @@ async function main(){
 
 
 	diamond.materials= {};
+	const chromatic= true;
 	diamond.materials.front= new THREE.ShaderMaterial({
 		uniforms: diamond.uniforms,
+		defines: {
+			FRONTFACE: true,
+			ENABLE_CHROMATIC: chromatic,
+		},
 		vertexShader: shader0_vert,
 		fragmentShader: shader0_frag,
 		side: THREE.FrontSide
 	});
 	diamond.materials.back= new THREE.ShaderMaterial({
 		uniforms: diamond.uniforms,
+		defines: {
+			FRONTFACE: false,
+			ENABLE_CHROMATIC: chromatic,
+		},
 		vertexShader: shader0_vert,
 		fragmentShader: shader0_frag,
 		side: THREE.BackSide
