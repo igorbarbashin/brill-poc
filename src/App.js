@@ -171,7 +171,7 @@ async function main(){
 	datgui_add(diamond.uniforms.sparkle_mag,      'sparkle mag',  0,512);
 	datgui_add(diamond.uniforms.glow,             'glow',         0,8);
 	datgui_add(diamond.uniforms.iridescence,             'iridescence',         0,16);
-	datgui_addProxy(diamond.uniforms.chroma,             'chroma',         -1,1, x=>x);//*diamond.uniforms.ior);
+	datgui_add(diamond.uniforms.chroma,             'chroma',         -.2,.2);//*diamond.uniforms.ior);
 	datgui_add(diamond.uniforms.inversion,             'inversion',         0,4);
 	datgui_addProxy(diamond.uniforms.inclusion,             'inclusion',         0,10, x=>(x/10.)*2.-1.);//[0,10]->[-1,1]
 	
@@ -179,37 +179,47 @@ async function main(){
 
 
 	diamond.materials= {};
-	const chromatic= true;
-	diamond.materials.front= new THREE.ShaderMaterial({
-		uniforms: diamond.uniforms,
-		defines: {
-			FRONTFACE: true,
-			ENABLE_CHROMATIC: chromatic,
-		},
-		vertexShader: shader0_vert,
-		fragmentShader: shader0_frag,
-		side: THREE.FrontSide
-	});
+	const chromatic= 1;
 	diamond.materials.back= new THREE.ShaderMaterial({
 		uniforms: diamond.uniforms,
 		defines: {
-			FRONTFACE: false,
+			BACKFACE: 1,
 			ENABLE_CHROMATIC: chromatic,
 		},
 		vertexShader: shader0_vert,
 		fragmentShader: shader0_frag,
-		side: THREE.BackSide
+		side: THREE.BackSide,
+		transparent: true,//this affects sort order
+		blending: THREE.NoBlending,//shader blends itself
+	});
+	diamond.materials.front= new THREE.ShaderMaterial({
+		uniforms: diamond.uniforms,
+		defines: {
+			BACKFACE: 0,
+			ENABLE_CHROMATIC: chromatic,
+		},
+		vertexShader: shader0_vert,
+		fragmentShader: shader0_frag,
+		side: THREE.FrontSide,
+		transparent: true,
+		blending: THREE.AdditiveBlending,
 	});
 
 	function meshload(gltf){
-		diamond.mesh= new THREE.Mesh(
-			gltf.scene.children[0].geometry,
-			//[
-				//diamond.materials.back,
-				diamond.materials.front
-			//]
+		//todo figure out how to multiple materials on single mesh
+		//passing material array does not work
+		diamond.mesh_back= new THREE.Mesh(
+			gltf.scene.children[0].geometry, 		
+			diamond.materials.back,			
 		);
-		scene.add(diamond.mesh);
+		diamond.mesh_front= new THREE.Mesh(
+			gltf.scene.children[0].geometry, 		
+			diamond.materials.front,			
+		);
+		diamond.mesh_back.renderOrder= 0;
+		diamond.mesh_front.renderOrder= 1;
+		scene.add(diamond.mesh_front);
+		scene.add(diamond.mesh_back);
 		log('LOADED: GLTF');
 	}
 	var meshload_promise= new Promise( resolve => gltfLoader.load('./diamond/diamond.glb',
@@ -253,10 +263,13 @@ async function main(){
 	function render(){
 		var dt= clock.getDelta();
 
-		//diamond.mesh.rotation.x += 0.0005;
-		//diamond.mesh.rotation.y += 0.0005;
-		diamond.mesh.rotation.x= -Math.PI/2.;
-		diamond.mesh.rotation.z += 0.0015;
+		[diamond.mesh_front,diamond.mesh_back].map(m=>{
+			//m.rotation.x += 0.0005;
+			//m.rotation.y += 0.0005;
+			m.rotation.x= -Math.PI/2.;
+			//m.rotation.z += 0.0015;
+			//FIXME??????
+		})
 
 
 		composer.render(dt);

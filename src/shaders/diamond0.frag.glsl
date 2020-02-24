@@ -1,5 +1,5 @@
 //@import lib WHY NOT WORK?! NO ERROR, USELESS
-#line 2
+#line 3
 
 #define PI  3.14159265359
 #define TAU (PI*2.)
@@ -279,17 +279,16 @@ void main () {
 
 	vec3 c;
 
-
 	//reflection
 	vec3 R= reflect(nV,nN);
 	vec3 cR= textureCube(env, R, rough_mip).rgb;
 	c+= cR*reflectance;
 	
 	//refraction
+	#if BACKFACE
 	vec3 I;
 	vec3 cI;
-	//!!#
-	#ifdef ENABLE_CHROMATIC
+	#if ENABLE_CHROMATIC
 	vec3 Ir= refract(nV,nN,ior-chroma);
 	vec3 Ig= refract(nV,nN,ior);
 	vec3 Ib= refract(nV,nN,ior+chroma);
@@ -301,16 +300,24 @@ void main () {
 	I= refract(nV,nN,ior);
 	cI= textureCube(env, I, rough_mip).rgb;
 	#endif
-	c+= cI*transmittance;	
+	c+= cI*transmittance;
+	#endif
 
 	//iridescence, approx
 	//applies to reflection and refraction
 	float irrR= sin(iridescence*dot(nV,nN));
 	c= hsv2rgb(rgb2hsv(c)+vec3(irrR,0.,0.));
 
+	//ambient approximation
+	#if BACKFACE
+	vec3 cA= (cR+cI)/2.;
+	#else
+	vec3 cA= (cR);
+	#endif
+
 	//sparkle
 	//approx the environment using samples already taken
-	c+= (cR+cI)*.5*S;
+	c+= cA*S;
 
 	//metallness
 	//affects all color additions above
@@ -329,6 +336,10 @@ void main () {
 	//c= incls;
 	//c= cI;
 	//c= Ir;
+	#if BACKFACE
+	c= cI;
+	#endif
+	//c= cI;
 	//c= nmapu(c);
 
 
