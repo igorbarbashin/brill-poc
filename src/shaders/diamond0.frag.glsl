@@ -275,57 +275,65 @@ void main () {
 
 
 
-	float S;
-	S= sparkle(oP);
-	S*= sparkle_mag;
 
 
 	//reflection
 	vec3 R= reflect(nV,nN);
 	vec3 cR= textureCube(env, R, rough_mip).rgb;
 	c+= cR*reflectance;
-	
-	//refraction
-	#if BACKFACE
-	vec3 I;
-	vec3 cI;
-	#if ENABLE_CHROMATIC
-	vec3 Ir= refract(nV,nN,ior-chroma);
-	vec3 Ig= refract(nV,nN,ior       );
-	vec3 Ib= refract(nV,nN,ior+chroma);
-	Ir+= step(-sum(Ir),0.)*R;
-	Ig+= step(-sum(Ig),0.)*R;
-	Ib+= step(-sum(Ib),0.)*R;	
-	I= Ig;
-	cI.r= textureCube(env, Ir, rough_mip).r;
-	cI.g= textureCube(env, Ig, rough_mip).g;
-	cI.b= textureCube(env, Ib, rough_mip).b;
-	#else
-	I= refract(nV,nN,ior);
-	I+= step(-sum(I),0.)*R;
-	cI= textureCube(env, I, rough_mip).rgb;
-	#endif
-	c+= cI*transmittance;
-	#endif
-
-	//iridescence, approx
-	float irrR= sin(iridescence*dot(nV,nN));
-	c= hsv2rgb(rgb2hsv(c)+vec3(irrR,0.,0.));
-
-	//ambient approximation
-	#if BACKFACE
-	vec3 cA= (cR+cI)/2.;
-	#else
-	vec3 cA= (cR);
-	#endif
-
-	//sparkle
-	//approx the environment using samples already taken
-	c+= cA*S;
 
 	//metallness
 	//affects all color additions above
 	c= mix( c, c*color/255., vec3(metal));
+	
+	//refraction
+	//#if BACKFACE
+		vec3 I;
+		vec3 cI;
+		float ior_;
+		#if BACKFACE
+		ior_= 1./ior;
+		#else
+		ior_= ior;
+		#endif
+		#if ENABLE_CHROMATIC
+			vec3 Ir= refract(nV,nN,ior_-chroma);
+			vec3 Ig= refract(nV,nN,ior_       );
+			vec3 Ib= refract(nV,nN,ior_+chroma);
+			Ir+= step(-sum(Ir),0.)*R;
+			Ig+= step(-sum(Ig),0.)*R;
+			Ib+= step(-sum(Ib),0.)*R;	
+			I= Ig;
+			cI.r= textureCube(env, Ir, rough_mip).r;
+			cI.g= textureCube(env, Ig, rough_mip).g;
+			cI.b= textureCube(env, Ib, rough_mip).b;
+		#else
+			I= refract(nV,nN,ior_);
+			I+= step(-sum(I),0.)*R;
+			cI= textureCube(env, I, rough_mip).rgb;
+		#endif
+		c+= cI*transmittance;
+	//#endif
+
+	//ambient approximation
+	vec3 cA;
+	#if BACKFACE
+		cA= (cR+cI)/2.;
+	#else
+		cA= (cR);
+	#endif
+
+	//sparkle
+	//approx the environment using samples already taken
+	float S;
+	S= sparkle(oP);
+	S*= sparkle_mag;
+	c+= cA*S*color/255.;
+
+
+	//iridescence, approx
+	float irrR= sin(iridescence*dot(nV,nN));
+	c= hsv2rgb(rgb2hsv(c)+vec3(irrR,0.,0.));
 
 	c= lerp(c,normalize(c),inversion);
 

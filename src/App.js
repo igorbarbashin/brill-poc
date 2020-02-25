@@ -28,22 +28,27 @@ var camera, scene, renderer, composer, controls, gui, diamond;
 var clock = new THREE.Clock();
 var gltfLoader= new GLTFLoader();
 
-//sugar
-function datgui_add(ref, name, min,max){ gui.add(     ref, 'value', min,max).name(name); }
-function datgui_addColor(ref, name){     gui.addColor(ref, 'value').name(name); }
-
-function log(x){ console.log(x); }
+function cout(x){ console.log(x); }
 
 /*proxy used for values that dont use the gui's value directly, such as uniforms
 since the gui will feedback if a transform is applied directly to its reference
 
 datgui is not compatible with setters! (which is dumb)
 'value' fields are a just a hack to make reference types*/
-function datgui_addProxy(ref, name, min,max, lambda){
-	const proxy= { value: ref.value };
-	function assign(){ ref.value= lambda(proxy.value); }
-	assign();//ref is initialized to gui-space not lambda-space, reverse that
-	gui.add(proxy,'value',min,max).onChange(assign).name(name);
+function datgui_add(ref, name, min,max, lambda){
+	if(ref.value instanceof THREE.Color){
+		if(lambda!==undefined)
+			throw('invalid parameter combination');
+		gui.addColor(ref,'value').name(name);
+	}else{
+		if(lambda!==undefined){
+			const proxy= { value: ref.value };
+			function assign(){ ref.value= lambda(proxy.value); }
+			assign();//ref is initialized to gui-space not lambda-space, reverse that
+			gui.add(proxy,'value',min,max).onChange(assign).name(name);
+		}else
+			gui.add(ref,'value',min,max).name(name);
+	}
 }
 
 var w= 1, h= 1;//of canvas == default framebuffer
@@ -152,30 +157,33 @@ async function main(){
 		sparkle_mag:      {value: 1.},
 		glow:             {value:   .1},
 		iridescence:      {value: 0.},
-		chroma:           {value: 1.},
+		chroma:           {value: .1},
 		inversion:           {value: 0.},
 		inclusion:           {value: 4.},
 	};
 	gui = new dat.GUI();
 
-	datgui_addProxy(pass_tmap.uniforms.exposure,  'exposure', -2,7, Math.exp);
-	datgui_addProxy(fsq.material.uniforms.mul,  'background_exposure', -8,7, Math.exp);
-	datgui_addColor(diamond.uniforms.color,       'color');
+	datgui_add(pass_tmap.uniforms.exposure,       'exposure', -2,7, Math.exp);
+	datgui_add(fsq.material.uniforms.mul,         'background_exposure', -8,7, Math.exp);
+	datgui_add(diamond.uniforms.color,            'color');
 	datgui_add(diamond.uniforms.metal,            'metallicity',  0,1);
-	datgui_add(diamond.uniforms.blur,        'blur',    0,6);
+	datgui_add(diamond.uniforms.blur,             'blur',    0,6);
 	datgui_add(diamond.uniforms.reflectance,      'reflectance',  0,1);
 	datgui_add(diamond.uniforms.transmittance,    'transmittance',0,1);
 	datgui_add(diamond.uniforms.ior,              'refraction',  -5,5);
-	datgui_addProxy(diamond.uniforms.sparkle_abundance,'sparkle abundance', 0,1, x=>Math.pow(x,4.));
+	datgui_add(diamond.uniforms.sparkle_abundance,'sparkle abundance', 0,1, x=>Math.pow(x,4.));
 	datgui_add(diamond.uniforms.sparkle_rate,     'sparkle rate', 0,1);
 	datgui_add(diamond.uniforms.sparkle_mag,      'sparkle mag',  0,512);
 	datgui_add(diamond.uniforms.glow,             'glow',         0,8);
-	datgui_add(diamond.uniforms.iridescence,             'iridescence',         0,16);
-	datgui_add(diamond.uniforms.chroma,             'chroma',         -.5,.5);//*diamond.uniforms.ior);
-	datgui_add(diamond.uniforms.inversion,             'inversion',         0,4);
-	datgui_addProxy(diamond.uniforms.inclusion,             'inclusion',         0,10, x=>(x/10.)*2.-1.);//[0,10]->[-1,1]
+	datgui_add(diamond.uniforms.iridescence,      'iridescence',         0,16);
+	datgui_add(diamond.uniforms.chroma,           'chroma',         -.5,.5);//*diamond.uniforms.ior);
+	datgui_add(diamond.uniforms.inversion,        'inversion',         0,4);
+	datgui_add(diamond.uniforms.inclusion,        'inclusion',         0,10, x=>(x/10.)*2.-1.);//[0,10]->[-1,1]
 	
 
+	function animate(){
+		
+	}
 
 
 	diamond.materials= {};
@@ -220,7 +228,7 @@ async function main(){
 		diamond.mesh_front.renderOrder= 1;
 		scene.add(diamond.mesh_front);
 		scene.add(diamond.mesh_back);
-		log('LOADED: GLTF');
+		cout('LOADED: GLTF');
 	}
 	var meshload_promise= new Promise( resolve => gltfLoader.load('./diamond/diamond.glb',
 		mesh=>{
@@ -233,8 +241,8 @@ async function main(){
 	function resize(){
 		w= canvas.clientWidth;
 		h= canvas.clientHeight;
-		//log('afsddad')
-		//log([w,h].join())
+		//cout('afsddad')
+		//cout([w,h].join())
 		//canvas.width= w;
 		//canvas.height= h;
 
@@ -254,11 +262,11 @@ async function main(){
 	resize();
 
 	//finish loading
-	log('LOADING AWAIT')
+	cout('LOADING AWAIT')
 	await Promise.all([
 		meshload_promise
 	]);
-	log('LOADING DONE')
+	cout('LOADING DONE')
 
 	function render(){
 		var dt= clock.getDelta();
@@ -267,7 +275,7 @@ async function main(){
 			//m.rotation.x += 0.0005;
 			//m.rotation.y += 0.0005;
 			m.rotation.x= -Math.PI/2.;
-			//m.rotation.z += 0.0015;
+			m.rotation.z += 0.0015;
 			//FIXME??????
 		})
 
