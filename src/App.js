@@ -235,17 +235,17 @@ async function main(){
 		env: env_tex,
 		color:{value: new THREE.Color(0xffffff)},//fixme properly bind threecolor to datgui
 		metal:            {value: .1},
-		blur:             {value: 0., name:"gloss",lambda:x=>(1.-x)*6.},//transforms to mip level
+		blur:             {value: 1., name:"gloss",lambda:x=>(1.-x)*6.},//transforms to mip level
 		reflectance:      {value: .5},
 		transmittance:    {value: 1.},
 		ior:              {value: 2., minmax:[-5,5], name:"refraction index"},
 		sparkle_abundance:{value: .7,  name:"sparkle amount",lambda:x=>Math.pow(x,4.)},
 		sparkle_mag:      {value: 1., minmax:[0,64], name:"sparkle brightness"},
 		sparkle_rate:     {value: .5, name:"shimmer"},
-		glow:             {value: .1, minmax:[  0,  8]},
-		iridescence:      {value: 0., minmax:[  0,  8], lambda:Math.exp },
+		glow:             {value: .1, minmax:[  0,  4]},
+		iridescence:      {value: 0., minmax:[  0,  4], lambda:Math.exp },
 		chroma:           {value: .1, minmax:[-.5, .5]},
-		inversion:        {value: 0., minmax:[ -4,  4]},
+		inversion:        {value: 0., minmax:[ -2,  2]},
 		inclusion:        {value: 4., minmax:[  0, 10],lambda:x=>Math.pow(linear_transform(x,[0,10],[0,.8]), .3) }
 	};
 
