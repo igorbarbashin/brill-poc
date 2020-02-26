@@ -262,9 +262,7 @@ void main () {
 			voronoi(p+vec3(0.,0.,ETA))
 			);
 		incls= (ddf-f)/ETA;
-		//incls= 1.-incls;
-		//incls*= pow( sat( 1.-voronoi(p/16.) ), nmaps(inclusion));
-		incls*= sat(-voronoi(p/16.)+inclusion);
+		incls*= step( 1.-voronoi(p/24.), inclusion );
 	}
 	nN+= (nN+incls)/2.;
 	nN= normalize(nN);
@@ -287,33 +285,31 @@ void main () {
 	c= mix( c, c*color/255., vec3(metal));
 	
 	//refraction
-	//#if BACKFACE
-		vec3 I;
-		vec3 cI;
-		float ior_;
-		#if BACKFACE
-		ior_= 1./ior;
-		#else
-		ior_= ior;
-		#endif
-		#if ENABLE_CHROMATIC
-			vec3 Ir= refract(nV,nN,ior_-chroma);
-			vec3 Ig= refract(nV,nN,ior_       );
-			vec3 Ib= refract(nV,nN,ior_+chroma);
-			Ir+= step(-sum(Ir),0.)*R;
-			Ig+= step(-sum(Ig),0.)*R;
-			Ib+= step(-sum(Ib),0.)*R;	
-			I= Ig;
-			cI.r= textureCube(env, Ir, rough_mip).r;
-			cI.g= textureCube(env, Ig, rough_mip).g;
-			cI.b= textureCube(env, Ib, rough_mip).b;
-		#else
-			I= refract(nV,nN,ior_);
-			I+= step(-sum(I),0.)*R;
-			cI= textureCube(env, I, rough_mip).rgb;
-		#endif
-		c+= cI*transmittance;
-	//#endif
+	vec3 I;
+	vec3 cI;
+	float ior_;
+	#if BACKFACE
+	ior_= 1./ior;
+	#else
+	ior_= ior;
+	#endif
+	#if ENABLE_CHROMATIC
+		vec3 Ir= refract(nV,nN,ior_-chroma);
+		vec3 Ig= refract(nV,nN,ior_       );
+		vec3 Ib= refract(nV,nN,ior_+chroma);
+		Ir+= step(-sum(Ir),0.)*R;
+		Ig+= step(-sum(Ig),0.)*R;
+		Ib+= step(-sum(Ib),0.)*R;	
+		I= Ig;
+		cI.r= textureCube(env, Ir, rough_mip).r;
+		cI.g= textureCube(env, Ig, rough_mip).g;
+		cI.b= textureCube(env, Ib, rough_mip).b;
+	#else
+		I= refract(nV,nN,ior_);
+		I+= step(-sum(I),0.)*R;
+		cI= textureCube(env, I, rough_mip).rgb;
+	#endif
+	c+= cI*transmittance;
 
 	//ambient approximation
 	vec3 cA;
