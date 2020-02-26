@@ -23,42 +23,128 @@ import shader0_vert from '!!webpack-glsl-loader!./shaders/diamond0.vert.glsl';
 import shader0_frag from '!!webpack-glsl-loader!./shaders/diamond0.frag.glsl';
 const OrbitControls = require('three-orbit-controls')(THREE);
 
+const cout= s=>console.log(s);
 
-var camera, scene, renderer, composer, controls, gui, diamond;
+const rand= Math.random;
+const sign= Math.sign;
+const sin= Math.sin;
+const cos= Math.cos;
+const abs= Math.abs;
+const min= Math.min;
+const max= Math.max;
+const floor= Math.floor;
+const ceil= Math.ceil;
+const sqrt= Math.sqrt;
+const pow= Math.pow;
+const exp= Math.exp;
+const log= Math.log;
+const log2= Math.log2;
+const Inf= Infinity;
+const PI= Math.PI;
+const TAU= 2.*PI;
+function mod(x,m){//js's % is remainder instread of modulus, which mangles negatives
+	return x-floor(x/m)*m;
+}
+function fract(x){
+	return x-floor(x);
+}
+function clamp(x, a,b){
+	return max(a, min(b, x));
+}
+function clamp01(x){
+	return max(0, min(1, x));
+}
+const saturate= clamp01;
+const sat= saturate;
+function smooth(x){
+	return x*x*(3-2*x);
+}
+function len2(x,y){
+	return sqrt(x*x+y*y);
+}
+function len3(x,y,z){
+	return sqrt(x*x+y*y+z*z);
+}
+function linear_transform(x,from,to){
+	const a= (to[1]-to[0])/(from[1]-from[0]);
+	const b= to[0]-from[0];
+	if(a==NaN||a==Inf)
+		throw('linear transform: invalid mapping');
+	return x*a+b;
+}
+function rand_gauss(){
+	const x= rand();
+	return sqrt(-2*log(x)/x)*sign(rand()-.5);
+}
+
+var camera;
+var gui= new dat.GUI();
 var clock = new THREE.Clock();
 var gltfLoader= new GLTFLoader();
+var scene, renderer, composer, controls, diamond;
 
-function cout(x){ console.log(x); }
 
-/*proxy used for values that dont use the gui's value directly, such as uniforms
-since the gui will feedback if a transform is applied directly to its reference
+function datgui_add(ref, name, opt){
+	opt=opt||{};
+	const  min= opt.minmax!==undefined?opt.minmax[0]:0.;
+	const  max= opt.minmax!==undefined?opt.minmax[1]:1.;
+	const  lambda= opt.lambda||(x=>x);
 
-datgui is not compatible with setters! (which is dumb)
-'value' fields are a just a hack to make reference types*/
-function datgui_add(ref, name, min,max, lambda){
+	const proxy= { value: ref.value };
+	function assign(){
+		ref.value= lambda(proxy.value);
+	}
+	assign();//ref is initialized to gui-space not lambda-space, reverse that
+
 	if(ref.value instanceof THREE.Color){
-		if(lambda!==undefined)
-			throw('invalid parameter combination');
-		gui.addColor(ref,'value').name(name);
+		return {
+			datgui: gui.addColor(ref,'value').name(name),
+			set value(x){
+				proxy.value= x;
+				assign();
+				this.datgui.updateDisplay();
+			},
+			get value(){ return proxy.value; },
+			seek(delta,dt){ },//p.value= clamp(p.value+delta*dt, p.min,p.max); },
+			randomize(){ },//p.value= rand(); },
+		};
 	}else{
-		if(lambda!==undefined){
-			const proxy= { value: ref.value };
-			function assign(){ ref.value= lambda(proxy.value); }
-			assign();//ref is initialized to gui-space not lambda-space, reverse that
-			gui.add(proxy,'value',min,max).onChange(assign).name(name);
-		}else
-			gui.add(ref,'value',min,max).name(name);
+		return {
+			datgui: gui.add(proxy,'value',min,max).onChange(assign).name(name),
+			set value(x){
+				proxy.value= x;
+				assign();
+				this.datgui.updateDisplay();
+			},
+			get value(){ return proxy.value; },
+			seek(delta,dt){ this.value= clamp(this.value+delta*dt, min,max); },
+			randomize(){ this.value= rand()*(max-min); },
+		};
+	}
+}
+
+const parameters= [];
+function add_parameter(p,name){
+	const g= datgui_add(p,name,p);//u is both ref and opts
+	g.animate= true;
+	parameters.push(g);
+}
+function add_parameter_uniforms(uniforms_object){
+	for(let k in uniforms_object){
+		let v= uniforms_object[k];
+		if(v.value==undefined)
+			continue;
+		add_parameter(v, v.name||k);
 	}
 }
 
 var w= 1, h= 1;//of canvas == default framebuffer
 
 async function main(){
-	camera = new THREE.PerspectiveCamera(40, 1., 0.001,10);
+	scene= new THREE.Scene();
+	camera= new THREE.PerspectiveCamera(40, 1., 0.001,10);
 	camera.position.z = 0.6;
 	controls = new OrbitControls(camera);
-
-	scene = new THREE.Scene();
 
 	const wgl2_yes= WEBGL.isWebGL2Available();
 	if(!wgl2_yes)
@@ -115,6 +201,7 @@ async function main(){
 				gl_FragColor= c;
 			}`
 	});
+	datgui_add(pass_tmap.uniforms.exposure,'scene exposure',{minmax:[-2,7], lambda:Math.exp});
 	composer.addPass(pass_tmap);
 
 	var env_tex = new THREE.CubeTextureLoader()
@@ -126,7 +213,7 @@ async function main(){
 			'ny.png',
 			'pz.png',
 			'nz.png'
-		]);
+		]);//is this blocking or async?
 	//env_tex.encoding= THREE.sRGBEncoding;//this should be srgb, but looks bad with reinhard
 	scene.background= env_tex;
 
@@ -140,50 +227,30 @@ async function main(){
 			depthWrite: false,
 			depthTest: false,
 		}));
+	datgui_add(fsq.material.uniforms.mul, 'background exposure', {minmax:[-8,7], lambda:Math.exp});
 	scene.add(fsq);
 
 	diamond= {};
 	diamond.uniforms= {
 		env: env_tex,
 		exposure: {value: 1.},
-		color:{value: new THREE.Color(0xffffff)},
-		metal:            {value:   .1},
-		blur:             {value:   0.},
-		reflectance:      {value:   .5},
-		transmittance:    {value:   1.},
-		ior:              {value:   2.},
-		sparkle_abundance:{value:  .7},
-		sparkle_rate:     {value:   .5},
-		sparkle_mag:      {value: 1.},
-		glow:             {value:   .1},
-		iridescence:      {value: 0.},
-		chroma:           {value: .1},
-		inversion:           {value: 0.},
-		inclusion:           {value: 4.},
+		color:{value: new THREE.Color(0xffffff)},//fixme properly bind threecolor to datgui
+		metal:            {value: .1},
+		blur:             {value: 0., name:"gloss",lambda:x=>(1.-x)*6.},//transforms to mip level
+		reflectance:      {value: .5},
+		transmittance:    {value: 1.},
+		ior:              {value: 2., minmax:[-5,5], name:"refraction index"},
+		sparkle_abundance:{value: .7,  name:"sparkle amount",lambda:x=>Math.pow(x,4.)},
+		sparkle_mag:      {value: 1., minmax:[0,64], name:"sparkle brightness"},
+		sparkle_rate:     {value: .5, name:"shimmer"},
+		glow:             {value: .1, minmax:[  0,  8]},
+		iridescence:      {value: 0., minmax:[  0,  8], lambda:Math.exp },
+		chroma:           {value: .1, minmax:[-.5, .5]},
+		inversion:        {value: 0., minmax:[ -4,  4]},
+		inclusion:        {value: 4., minmax:[  0, 10],lambda:x=>Math.pow(linear_transform(x,[0,10],[0,.8]), .3) }
 	};
-	gui = new dat.GUI();
 
-	datgui_add(pass_tmap.uniforms.exposure,       'exposure', -2,7, Math.exp);
-	datgui_add(fsq.material.uniforms.mul,         'background_exposure', -8,7, Math.exp);
-	datgui_add(diamond.uniforms.color,            'color');
-	datgui_add(diamond.uniforms.metal,            'metallicity',  0,1);
-	datgui_add(diamond.uniforms.blur,             'blur',    0,6);
-	datgui_add(diamond.uniforms.reflectance,      'reflectance',  0,1);
-	datgui_add(diamond.uniforms.transmittance,    'transmittance',0,1);
-	datgui_add(diamond.uniforms.ior,              'refraction',  -5,5);
-	datgui_add(diamond.uniforms.sparkle_abundance,'sparkle abundance', 0,1, x=>Math.pow(x,4.));
-	datgui_add(diamond.uniforms.sparkle_rate,     'sparkle rate', 0,1);
-	datgui_add(diamond.uniforms.sparkle_mag,      'sparkle mag',  0,512);
-	datgui_add(diamond.uniforms.glow,             'glow',         0,8);
-	datgui_add(diamond.uniforms.iridescence,      'iridescence',         0,16);
-	datgui_add(diamond.uniforms.chroma,           'chroma',         -.5,.5);//*diamond.uniforms.ior);
-	datgui_add(diamond.uniforms.inversion,        'inversion',         0,4);
-	datgui_add(diamond.uniforms.inclusion,        'inclusion',         0,10, x=>(x/10.)*2.-1.);//[0,10]->[-1,1]
-	
-
-	function animate(){
-		
-	}
+	add_parameter_uniforms(diamond.uniforms);
 
 
 	diamond.materials= {};
@@ -279,6 +346,11 @@ async function main(){
 			//FIXME??????
 		})
 
+		Object.values(parameters).forEach(p=>{
+			if(p.animate)
+				p.seek(rand_gauss()*.2,dt);
+			console.log(p);
+		});
 
 		composer.render(dt);
 		//renderer.render(scene,camera);
