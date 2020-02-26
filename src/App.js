@@ -233,7 +233,6 @@ async function main(){
 	diamond= {};
 	diamond.uniforms= {
 		env: env_tex,
-		exposure: {value: 1.},
 		color:{value: new THREE.Color(0xffffff)},//fixme properly bind threecolor to datgui
 		metal:            {value: .1},
 		blur:             {value: 0., name:"gloss",lambda:x=>(1.-x)*6.},//transforms to mip level
