@@ -177,7 +177,7 @@ async function main(){
 	composer.addPass(new RenderPass(scene,camera));
 	//composer.addPass(new AdaptiveToneMappingPass());//this is not very good
 	const pass_bloom= new BloomPass();
-	//!!composer.addPass(pass_bloom);
+	composer.addPass(pass_bloom);
 	const pass_tmap= new ShaderPass({
 		uniforms: {
 			tDiffuse: { value: null },
@@ -327,12 +327,22 @@ async function main(){
 	window.addEventListener('resize', resize);
 	resize();
 
+	//parameter initialization
+	Object.values(parameters).forEach(p=>{
+		//randomized randomization
+		if(rand()>.69)
+			p.randomize();
+		//randomized animation
+		p.animate= rand()>.9;
+	});
+	
 	//finish loading
 	cout('LOADING AWAIT')
 	await Promise.all([
 		meshload_promise
 	]);
 	cout('LOADING DONE')
+
 
 	function render(){
 		var dt= clock.getDelta();
@@ -348,7 +358,7 @@ async function main(){
 		Object.values(parameters).forEach(p=>{
 			if(p.animate)
 				p.seek(rand_gauss()*.2,dt);
-			console.log(p);
+			//todo make animator analytic instead of differential
 		});
 
 		composer.render(dt);
