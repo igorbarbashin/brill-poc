@@ -149,7 +149,7 @@ uniform float metal;
 uniform float ior;
 
 uniform float sparkle_abundance;
-uniform float sparkle_rate;
+uniform float shimmer;
 uniform float sparkle_mag;
 
 uniform float glow;
@@ -158,26 +158,30 @@ uniform float chroma;
 uniform float inversion;
 uniform float inclusion;
 
-vec3 lowpass(vec3 p, float f){
-	return floor(p*f)/f;
-}
-float gauss(float x, float sigma){
-	float e= x/(sigma*sigma);
-	return exp(-e*e);
+vec3  quant(vec3  p, vec3 f){	return floor(p*f)/f; }
+vec3  quant(vec3  p, float f){	return quant(p,vec3(f)); }
+float quant(float p, float f){	return floor(p*f)/f; }
+vec3 quant_log2(vec3 p){ return exp2(floor(log2(p))); }
+float gauss(float x){
+	//box-muller
+	return sqrt(-2.*log(sat(x)));
 }
 float hash3i1f(ivec3 i){
 	i= ((i>>16)^i)*0x45d9f3b;
 	i= ((i>>16)^i)*0x45d9f3b;
-	return float(i.x+i.y+i.z)/float(0x7FFFFFFF);
+	//i= abs(i);
+	int s= i.x+i.y+i.z;
+	s= ((s>>16)^s)*0x45d9f3b;
+	return nmapu((float(s)/float(0x7FFFFFFE)));
 }
 float nse31(vec3 p){
-	return fract(sum(512.*tan(128.*p)));
+	return hash3i1f(ivec3(p*float(0xFFFFFFF)));
 }
 vec3 nse33(vec3 p){
 	return fract(512.*tan(128.*p));
 }
 float voronoi(vec3 x){
-	//inigo quilez, 3d fork by khlor
+	//by inigo quilez, 3d fork by khlor
     ivec3 p = ivec3(floor( x ));
     vec3  f = fract( x );
 
@@ -217,23 +221,15 @@ float voronoi(vec3 x){
 }
 
 
-float sparkle(vec3 p){
-	float F= 1.e4;//lowpass freq
-	//float nyquist= max(dFdx(p.x),dFdy(p.y));
-	//F
-	float acc= 0.;
-	//sparkle rate intentionally introduces subpixel alias
-	acc= lerp(
-		nse31(lowpass(p,F)),
-		nse31(lowpass(p,F*32.)),
-		sparkle_rate
-		);
-	acc/= (1.+sparkle_rate);//*3.;//normalize
-	acc= gauss(acc,sparkle_abundance);
-    return acc;
-    //todo better
+vec3 nyquist(vec3 p){
+	#if (__VERSION__>=200)
+	return 2.*max(
+		abs(dFdx(p)),
+		abs(dFdy(p)));
+	#else
+	return 1.e3;
+	#endif
 }
-
 
 varying vec3 oP;//object vert position
 varying vec3 wP;//world position
@@ -311,7 +307,7 @@ void main () {
 	#endif
 	c+= cI*transmittance;
 
-	//ambient approximation
+	//ambient approximation using environment samples already taken
 	vec3 cA;
 	#if BACKFACE
 		cA= (cR+cI)/2.;
@@ -320,23 +316,34 @@ void main () {
 	#endif
 
 	//sparkle
-	//approx the environment using samples already taken
 	float S;
-	S= sparkle(oP);
-	S*= sparkle_mag;
-	c+= cA*S*color/255.;
+	{
+		vec3 p= oP;
+		vec3 N= quant_log2(nyquist(p)+ETA/80.);
+		vec3 F= 1./N;
+		//gl_FragColor= vec4(abs(N),1.);
+		//return;//!!
+		//shimmer intentionally introduces subpixel+temporal alias
+		S= nse31(quant(p,F));
+		S= gauss(S)-nse31(p)*shimmer;
+		S= sparkle_mag*sat(S*sparkle_abundance-2.);//lots of guessing was involved here
+	}
+	c+= cA*S*lerp(vec3(1.),color/255., vec3(metal));
 
 
 	//iridescence, approx
 	float irrR= sin(iridescence*dot(nV,nN));
 	c= hsv2rgb(rgb2hsv(c)+vec3(irrR,0.,0.));
 
+	//inversion
 	c= lerp(c,normalize(c),inversion);
 
 	//glow
 	c+= glow*color/255.;
 
 	//debug
+	#define DEBUG 1
+	#if DEBUG
 	//c= nN;
 	//c= nV;
 	//c= R;
@@ -344,11 +351,10 @@ void main () {
 	//c= incls;
 	//c= cI;
 	//c= Ir;
-	#if BACKFACE
-	c= cI;
-	#endif
 	//c= cI;
 	//c= nmapu(c);
+	//c= vec3(S);
+	#endif
 
 
 	gl_FragColor= vec4(c,1.);

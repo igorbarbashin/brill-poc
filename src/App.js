@@ -239,14 +239,14 @@ async function main(){
 		reflectance:      {value: .5},
 		transmittance:    {value: 1.},
 		ior:              {value: 2., minmax:[-5,5], name:"refraction index"},
-		sparkle_abundance:{value: .7,  name:"sparkle amount",lambda:x=>Math.pow(x,4.)},
+		sparkle_abundance:{value: .7,  name:"sparkle amount",lambda:x=>Math.pow(x,.5)},
 		sparkle_mag:      {value: 1., minmax:[0,64], name:"sparkle brightness"},
-		sparkle_rate:     {value: .5, name:"shimmer"},
+		shimmer:     	  {value: .5},
 		glow:             {value: .1, minmax:[  0,  4]},
 		iridescence:      {value: 0., minmax:[  0,  4], lambda:Math.exp },
 		chroma:           {value: .1, minmax:[-.5, .5]},
 		inversion:        {value: 0., minmax:[ -2,  2]},
-		inclusion:        {value: 4., minmax:[  0, 10],lambda:x=>Math.pow(linear_transform(x,[0,10],[0,.8]), .3) }
+		inclusion:        {value: 2., minmax:[  0, 10],lambda:x=>Math.pow(linear_transform(x,[0,10],[0,.8]), .3) }
 	};
 
 	add_parameter_uniforms(diamond.uniforms);
@@ -335,7 +335,7 @@ async function main(){
 		//randomized animation
 		p.animate= rand()>.9;
 	});
-	
+
 	//finish loading
 	cout('LOADING AWAIT')
 	await Promise.all([
@@ -352,7 +352,6 @@ async function main(){
 			//m.rotation.y += 0.0005;
 			m.rotation.x= -Math.PI/2.;
 			m.rotation.z += 0.0015;
-			//FIXME??????
 		})
 
 		Object.values(parameters).forEach(p=>{
