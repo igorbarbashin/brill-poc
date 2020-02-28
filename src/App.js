@@ -181,7 +181,7 @@ async function main(){
 	const pass_tmap= new ShaderPass({
 		uniforms: {
 			tDiffuse: { value: null },
-			exposure: { value: 1. }
+			exposure: { value: 0. }
 		},
 		vertexShader: `
 			varying vec2 vUv;
@@ -240,7 +240,7 @@ async function main(){
 		transmittance:    {value: 1.},
 		ior:              {value: 2., minmax:[-5,5], name:"refraction index"},
 		sparkle_abundance:{value: .7,  name:"sparkle amount",lambda:x=>Math.pow(x,.5)},
-		sparkle_mag:      {value: 1., minmax:[0,64], name:"sparkle brightness"},
+		sparkle_mag:      {value: 1., minmax:[0,256], name:"sparkle brightness"},
 		shimmer:     	  {value: .5},
 		glow:             {value: .1, minmax:[  0,  4]},
 		iridescence:      {value: 0., minmax:[  0,  4], lambda:Math.exp },
@@ -306,7 +306,7 @@ async function main(){
 	
 	function resize(){
 		w= canvas.clientWidth;
-		h= canvas.clientHeight;
+		h= canvas.clientHeight;//fixme make this work with canvas wh instead
 		//cout('afsddad')
 		//cout([w,h].join())
 		//canvas.width= w;

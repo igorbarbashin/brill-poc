@@ -11,6 +11,7 @@ import {
 	ShaderMaterial,
 	UniformsUtils,
 	Vector2,
+	FloatType,
 	Vector3,
 	WebGLRenderTarget
 } from "three/build/three.module.js";
@@ -58,16 +59,17 @@ var BloomPass = function ( strength, resolution, iterations, threshold, ramp ) {
 	Pass.call( this );
 
 	this.strength = 1;
-	this.iterations = iterations||256;
+	this.iterations = iterations||32;
 	this.threshold = 1;
 	this.ramp= ramp||.8;
-	this.resolution = new Vector2(256,256);
+	this.resolution = new Vector2(1,1);//gets initialized properly by init::resize
 
 	// create color only once here, reuse it later inside the render function
 	this.clearColor = new Color(0);
 
 	// render targets
-	var pars = { minFilter: NearestFilter, magFilter: LinearFilter, format: RGBAFormat };
+	var pars = { minFilter: NearestFilter, magFilter: LinearFilter, format: RGBAFormat, 
+		type: FloatType };
 	const resx = this.resolution.x;
 	const resy = this.resolution.y;
 
@@ -179,13 +181,21 @@ BloomPass.prototype = Object.assign( Object.create( Pass.prototype ), {
 
 	dispose: function () {
 		this.renderTargetBright.dispose();
+		this.renderTargetHorizontal.dispose();
+		this.renderTargetVertical.dispose();
 	},
 
 	setSize: function ( width, height ) {
+		//todo fix anamorphism from renderbuffer mismatched aspect ratio
 		var resx = Math.floor(width);
 		var resy = Math.floor(height);
-		this.renderTargetBright.setSize( resx, resy );
-		this.separableBlurMaterial.uniforms.invSize.value= new Vector2( 1./resx, 1./resy );
+		this.resolution.x= resx;
+		this.resolution.y= resy;
+		this.renderTargetBright.setSize(resx, resy);
+		this.renderTargetHorizontal.setSize(resx, resy);
+		this.renderTargetVertical.setSize(resx, resy);
+		this.separableBlurMaterial.uniforms.invSize.value.x= 1./resx;
+		this.separableBlurMaterial.uniforms.invSize.value.y= 1./resy;
 	},
 
 	render: function ( renderer, writeBuffer, readBuffer, deltaTime, maskActive ) {
@@ -195,6 +205,8 @@ BloomPass.prototype = Object.assign( Object.create( Pass.prototype ), {
 		renderer.autoClear = false;
 
 		renderer.setClearColor( this.clearColor, 0 );
+
+		//fixme dont directly sample from input buffer, downsample it by powers of 2
 
 		if ( maskActive ) renderer.state.buffers.stencil.setTest( false );
 
@@ -218,25 +230,25 @@ BloomPass.prototype = Object.assign( Object.create( Pass.prototype ), {
 
 		var inputRenderTarget = this.renderTargetBright;
 
-		//diffusion
-		//for(let i=0; i<this.iterations; i++){
-			this.fsQuad.material = this.separableBlurMaterial;
 
-			this.separableBlurMaterial.uniforms.colorTexture.value = inputRenderTarget.texture;
-			this.separableBlurMaterial.uniforms.direction.value = BloomPass.BlurDirectionX;
-			renderer.setRenderTarget( this.renderTargetHorizontal);
-			renderer.clear();
-			this.fsQuad.render( renderer );
+		this.fsQuad.material = this.separableBlurMaterial;
 
-			this.separableBlurMaterial.uniforms.colorTexture.value = this.renderTargetHorizontal.texture;
-			this.separableBlurMaterial.uniforms.direction.value = BloomPass.BlurDirectionY;
-			renderer.setRenderTarget( this.renderTargetVertical);
-			renderer.clear();
-			this.fsQuad.render( renderer );
+		this.separableBlurMaterial.uniforms.colorTexture.value = inputRenderTarget.texture;
+		this.separableBlurMaterial.uniforms.direction.value = BloomPass.BlurDirectionX;
+		renderer.setRenderTarget( this.renderTargetHorizontal);
+		renderer.clear();
+		this.fsQuad.render( renderer );
 
-			inputRenderTarget = this.renderTargetVertical;
+		this.separableBlurMaterial.uniforms.colorTexture.value = this.renderTargetHorizontal.texture;
+		this.separableBlurMaterial.uniforms.direction.value = BloomPass.BlurDirectionY;
+		renderer.setRenderTarget( this.renderTargetVertical);
+		renderer.clear();
+		this.fsQuad.render( renderer );
 
-		//}
+		//todo stars/flare
+
+		inputRenderTarget = this.renderTargetVertical;
+
 
 		// Blend it additively over the input texture
 		this.fsQuad.material = this.materialCopy;
