@@ -76,6 +76,7 @@ var BloomPass = function ( strength, resolution, iterations, threshold, ramp ) {
 	this.renderTargetBright = new WebGLRenderTarget( resx, resy, pars );
 	this.renderTargetBright.texture.name = "BloomPass.bright";
 	this.renderTargetBright.texture.generateMipmaps = false;
+	//delete pars.type;//only first pass needs hdr //todo this makes it unhappy, find where exactly to collapse hdr
 
 	var renderTargetHorizonal = new WebGLRenderTarget( resx, resy, pars );
 	renderTargetHorizonal.texture.name = "BloomPass.h";
@@ -239,7 +240,7 @@ BloomPass.prototype = Object.assign( Object.create( Pass.prototype ), {
 		renderer.clear();
 		this.fsQuad.render( renderer );
 
-		this.separableBlurMaterial.uniforms.colorTexture.value = this.renderTargetHorizontal.texture;
+		this.separableBlurMaterial.uniforms.colorTexture.value = inputRenderTarget.texture;
 		this.separableBlurMaterial.uniforms.direction.value = BloomPass.BlurDirectionY;
 		renderer.setRenderTarget( this.renderTargetVertical);
 		renderer.clear();

@@ -196,8 +196,8 @@ async function main(){
 			void main() {
 				vec4 c= texture2D(tDiffuse, vUv);
 				c.rgb= ReinhardToneMapping(c.rgb*exposure);
-				//c.rgb= pow(c.rgb, vec3(2.2));//gamma
-				//im not sure if gamma is being handled auto or if reinhard does that
+				//c.rgb= pow(max(vec3(0.),c.rgb), vec3(2.));//gamma
+				//im pretty sure gamma is not being handled 'correctly' but it looks good so whatever
 				gl_FragColor= c;
 			}`
 	});
@@ -234,13 +234,14 @@ async function main(){
 	diamond.uniforms= {
 		env: env_tex,
 		color:{value: new THREE.Color(0xffffff)},//fixme properly bind threecolor to datgui
+		gamma:            {value: 1.5, minmax:[.125,4.]},
 		metal:            {value: .1},
 		blur:             {value: 1., name:"gloss",lambda:x=>(1.-x)*6.},//transforms to mip level
 		reflectance:      {value: .5},
 		transmittance:    {value: 1.},
 		ior:              {value: 2., minmax:[-5,5], name:"refraction index"},
-		sparkle_abundance:{value: .7,  name:"sparkle amount",lambda:x=>Math.pow(x,.5)},
-		sparkle_mag:      {value: 1., minmax:[0,256], name:"sparkle brightness"},
+		sparkle_abundance:{value: .4,  name:"sparkle amount",lambda:x=>Math.pow(x,.5)},
+		sparkle_mag:      {value: 1., minmax:[0,128], name:"sparkle brightness"},
 		shimmer:     	  {value: .5},
 		glow:             {value: .1, minmax:[  0,  4]},
 		iridescence:      {value: 0., minmax:[  0,  4], lambda:Math.exp },

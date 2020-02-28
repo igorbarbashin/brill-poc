@@ -142,6 +142,7 @@ vec3 rgb2hsv(vec3 rgb) {
 uniform samplerCube env;
 
 uniform vec3 color;
+uniform float gamma;
 uniform float blur;
 uniform float reflectance;
 uniform float transmittance;
@@ -356,6 +357,8 @@ void main () {
 	//c= vec3(S);
 	#endif
 
+	c= max(vec3(0.),c);
+	c= pow(c,vec3(gamma));//contrived contrast
 
 	gl_FragColor= vec4(c,1.);
 }
