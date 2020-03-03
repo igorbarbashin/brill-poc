@@ -139,7 +139,6 @@ vec3 rgb2hsv(vec3 rgb) {
 
 
 
-uniform samplerCube env;
 
 uniform vec3 color;
 uniform float gamma;
@@ -158,6 +157,22 @@ uniform float iridescence;
 uniform float chroma;
 uniform float inversion;
 uniform float inclusion;
+
+
+uniform samplerCube env_tex;
+vec3 env(vec3 v, float mip){
+	#if ENVIRONMENT_CUBEMAP
+	return textureCube(env_tex, v, mip);
+	#else
+	//v= normalize(v); somehow causes nans, that should assertn't but whatever
+	return vec3(sat(pow(abs(v.z), (8.-blur))));
+	#endif
+}
+
+
+
+
+
 
 vec3  quant(vec3  p, vec3 f){	return floor(p*f)/f; }
 vec3  quant(vec3  p, float f){	return quant(p,vec3(f)); }
@@ -274,7 +289,7 @@ void main () {
 
 	//reflection
 	vec3 R= reflect(nV,nN);
-	vec3 cR= textureCube(env, R, rough_mip).rgb;
+	vec3 cR= env(R, rough_mip).rgb;
 	c+= cR*reflectance;
 
 	//metallness
@@ -294,17 +309,17 @@ void main () {
 		vec3 Ir= refract(nV,nN,ior_-chroma);
 		vec3 Ig= refract(nV,nN,ior_       );
 		vec3 Ib= refract(nV,nN,ior_+chroma);
-		Ir+= step(-sum(Ir),0.)*R;
+		Ir+= step(-sum(Ir),0.)*R;//internal reflection
 		Ig+= step(-sum(Ig),0.)*R;
 		Ib+= step(-sum(Ib),0.)*R;	
 		I= Ig;
-		cI.r= textureCube(env, Ir, rough_mip).r;
-		cI.g= textureCube(env, Ig, rough_mip).g;
-		cI.b= textureCube(env, Ib, rough_mip).b;
+		cI.r= env(Ir, rough_mip).r;
+		cI.g= env(Ig, rough_mip).g;
+		cI.b= env(Ib, rough_mip).b;
 	#else
 		I= refract(nV,nN,ior_);
 		I+= step(-sum(I),0.)*R;
-		cI= textureCube(env, I, rough_mip).rgb;
+		cI= env(I, rough_mip).rgb;
 	#endif
 	c+= cI*transmittance;
 
@@ -348,7 +363,7 @@ void main () {
 	//c= nN;
 	//c= nV;
 	//c= R;
-	//c= textureCube(env, R).rgb+.2;
+	//c= textureCube(env, R, rough_mip).rgb+.2;
 	//c= incls;
 	//c= cI;
 	//c= Ir;

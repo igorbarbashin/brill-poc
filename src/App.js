@@ -220,7 +220,7 @@ async function main(){
 	var fsq= new THREE.Mesh(
 		new THREE.PlaneGeometry(2,2),
 		new THREE.ShaderMaterial({
-			uniforms: { mul: {value: -2.} },
+			uniforms: { mul: {value: -8.} },
 			vertexShader:"void main(){ gl_Position= vec4(position, 1.0); }",
 			fragmentShader:"uniform float mul; void main(){ gl_FragColor= vec4(mul); }",
 			blending: THREE.MultiplyBlending,
@@ -232,7 +232,7 @@ async function main(){
 
 	diamond= {};
 	diamond.uniforms= {
-		env: env_tex,
+		env_tex: env_tex,
 		color:{value: new THREE.Color(0xffffff)},//fixme properly bind threecolor to datgui
 		gamma:            {value: 1.5, minmax:[.125,4.]},
 		metal:            {value: .1},
@@ -249,30 +249,29 @@ async function main(){
 		inversion:        {value: 0., minmax:[ -2,  2]},
 		inclusion:        {value: 2., minmax:[  0, 10],lambda:x=>Math.pow(linear_transform(x,[0,10],[0,.8]), .3) }
 	};
-
+	//defines must use 0:1 instead of false:true
+	diamond.defines={
+		ENVIRONMENT_CUBEMAP: 0,//uses phong if off, saving O(N) dependent texture samples
+		ENABLE_CHROMATIC: 1,//off:on 1 ray vs 3
+	}
 	add_parameter_uniforms(diamond.uniforms);
 
 
 	diamond.materials= {};
-	const chromatic= 1;
+	diamond.defines.BACKFACE= 1;
 	diamond.materials.back= new THREE.ShaderMaterial({
 		uniforms: diamond.uniforms,
-		defines: {
-			BACKFACE: 1,
-			ENABLE_CHROMATIC: chromatic,
-		},
+		defines: diamond.defines,
 		vertexShader: shader0_vert,
 		fragmentShader: shader0_frag,
 		side: THREE.BackSide,
 		transparent: true,//this affects sort order
 		blending: THREE.NoBlending,//shader blends itself
 	});
+	diamond.defines.BACKFACE= 0;
 	diamond.materials.front= new THREE.ShaderMaterial({
 		uniforms: diamond.uniforms,
-		defines: {
-			BACKFACE: 0,
-			ENABLE_CHROMATIC: chromatic,
-		},
+		defines: diamond.defines,
 		vertexShader: shader0_vert,
 		fragmentShader: shader0_frag,
 		side: THREE.FrontSide,
@@ -280,7 +279,11 @@ async function main(){
 		blending: THREE.AdditiveBlending,
 	});
 
-	function meshload(gltf){
+
+	//gltf loading
+	const loaders= [];
+	//maybe everything should be a single gltf file? i dunno.
+	function diamondload(gltf){
 		//todo figure out how to multiple materials on single mesh
 		//passing material array does not work
 		diamond.mesh_back= new THREE.Mesh(
@@ -295,14 +298,32 @@ async function main(){
 		diamond.mesh_front.renderOrder= 1;
 		scene.add(diamond.mesh_front);
 		scene.add(diamond.mesh_back);
-		cout('LOADED: GLTF');
 	}
-	var meshload_promise= new Promise( resolve => gltfLoader.load('./diamond/diamond.glb',
-		mesh=>{
-			meshload(mesh);
-			resolve();
-		})
-	);
+	function inclusionsload(gltf){
+		//todo figure out how to multiple materials on single mesh
+		//passing material array does not work
+		diamond.mesh_inclusions= new THREE.Mesh(
+			gltf.scene.children[0].geometry, 		
+			diamond.materials.inclusions,			
+		);
+		//TODO
+		diamond.mesh_back.renderOrder= 0;
+		diamond.mesh_front.renderOrder= 1;
+		scene.add(diamond.mesh_inclusions);
+	}
+	const meshloader= (file,lambda)=> {//this is a mess
+		const p= new Promise( resolve =>
+			gltfLoader.load(file,
+			mesh=>{
+				lambda(mesh);
+				resolve();
+			})
+		);
+		loaders.push(p);
+		return p;
+	}
+	var meshloader_diamond= meshloader('./diamond/diamond.glb',diamondload);
+	var meshloader_inclusions= meshloader('./inclusion_geometry/subdiv_cubes.glb',inclusionsload);
 
 	
 	function resize(){
@@ -337,11 +358,9 @@ async function main(){
 		p.animate= rand()>.9;
 	});
 
-	//finish loading
+
 	cout('LOADING AWAIT')
-	await Promise.all([
-		meshload_promise
-	]);
+	await Promise.all(loaders);
 	cout('LOADING DONE')
 
 
