@@ -68,7 +68,7 @@ function len3(x,y,z){
 function linear_transform(x,from,to){
 	const a= (to[1]-to[0])/(from[1]-from[0]);
 	const b= to[0]-from[0];
-	if(a==NaN||a==Inf)
+	if(isNaN(a)||a==Inf)
 		throw('linear transform: invalid mapping');
 	return x*a+b;
 }
@@ -132,7 +132,7 @@ function add_parameter(p,name){
 function add_parameter_uniforms(uniforms_object){
 	for(let k in uniforms_object){
 		let v= uniforms_object[k];
-		if(v.value==undefined)
+		if(v.value===undefined)
 			continue;
 		add_parameter(v, v.name||k);
 	}
@@ -251,7 +251,7 @@ async function main(){
 	};
 	//defines must use 0:1 instead of false:true
 	diamond.defines={
-		ENVIRONMENT_CUBEMAP: 0,//uses phong if off, saving O(N) dependent texture samples
+		ENVIRONMENT_CUBEMAP: 1,//uses phong if off, saving O(N) dependent texture samples
 		ENABLE_CHROMATIC: 1,//off:on 1 ray vs 3
 	}
 	add_parameter_uniforms(diamond.uniforms);
@@ -278,7 +278,19 @@ async function main(){
 		transparent: true,
 		blending: THREE.AdditiveBlending,
 	});
+	diamond.materials.inclusions= new THREE.ShaderMaterial({
+		//TODO
+		uniforms: diamond.uniforms,
+		defines: diamond.defines,
+		vertexShader: shader0_vert,
+		fragmentShader: shader0_frag,
+		//side: THREE.FrontSide,
+		//transparent: true,
+		//blending: THREE.AdditiveBlending,
+	});
 
+	//renderOrder is very important, 0: backface, 1: inclusions, 2: frontface
+	//this will change (somehow?) once raytraced
 
 	//gltf loading
 	const loaders= [];
@@ -295,23 +307,19 @@ async function main(){
 			diamond.materials.front,			
 		);
 		diamond.mesh_back.renderOrder= 0;
-		diamond.mesh_front.renderOrder= 1;
+		diamond.mesh_front.renderOrder= 2;
 		scene.add(diamond.mesh_front);
 		scene.add(diamond.mesh_back);
 	}
 	function inclusionsload(gltf){
-		//todo figure out how to multiple materials on single mesh
-		//passing material array does not work
 		diamond.mesh_inclusions= new THREE.Mesh(
 			gltf.scene.children[0].geometry, 		
 			diamond.materials.inclusions,			
 		);
-		//TODO
-		diamond.mesh_back.renderOrder= 0;
-		diamond.mesh_front.renderOrder= 1;
-		scene.add(diamond.mesh_inclusions);
+		diamond.mesh_inclusions.renderOrder= 1;
+		//scene.add(diamond.mesh_inclusions);
 	}
-	const meshloader= (file,lambda)=> {//this is a mess
+	const meshload= (file,lambda)=> {//this is a mess
 		const p= new Promise( resolve =>
 			gltfLoader.load(file,
 			mesh=>{
@@ -322,8 +330,8 @@ async function main(){
 		loaders.push(p);
 		return p;
 	}
-	var meshloader_diamond= meshloader('./diamond/diamond.glb',diamondload);
-	var meshloader_inclusions= meshloader('./inclusion_geometry/subdiv_cubes.glb',inclusionsload);
+	meshload('./diamond/diamond.glb',diamondload);
+	meshload('./inclusion_geometry/subdiv_cubes.glb',inclusionsload);
 
 	
 	function resize(){

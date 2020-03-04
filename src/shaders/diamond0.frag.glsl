@@ -162,7 +162,7 @@ uniform float inclusion;
 uniform samplerCube env_tex;
 vec3 env(vec3 v, float mip){
 	#if ENVIRONMENT_CUBEMAP
-	return textureCube(env_tex, v, mip);
+	return textureCube(env_tex, v, mip).rgb;
 	#else
 	//v= normalize(v); somehow causes nans, that should assertn't but whatever
 	return vec3(sat(pow(abs(v.z), (8.-blur))));
@@ -289,7 +289,7 @@ void main () {
 
 	//reflection
 	vec3 R= reflect(nV,nN);
-	vec3 cR= env(R, rough_mip).rgb;
+	vec3 cR= env(R, rough_mip);
 	c+= cR*reflectance;
 
 	//metallness
@@ -319,7 +319,7 @@ void main () {
 	#else
 		I= refract(nV,nN,ior_);
 		I+= step(-sum(I),0.)*R;
-		cI= env(I, rough_mip).rgb;
+		cI= env(I, rough_mip);
 	#endif
 	c+= cI*transmittance;
 
@@ -349,7 +349,7 @@ void main () {
 
 	//iridescence, approx
 	float irrR= sin(iridescence*dot(nV,nN));
-	c= hsv2rgb(rgb2hsv(c)+vec3(irrR,0.,0.));
+	c= hsv2rgb(rgb2hsv(c)+vec3(irrR,irrR,0.));
 
 	//inversion
 	c= lerp(c,normalize(c),inversion);
@@ -363,7 +363,7 @@ void main () {
 	//c= nN;
 	//c= nV;
 	//c= R;
-	//c= textureCube(env, R, rough_mip).rgb+.2;
+	//c= env(R, rough_mip)+.2;
 	//c= incls;
 	//c= cI;
 	//c= Ir;
