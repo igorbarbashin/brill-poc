@@ -80,7 +80,6 @@ function rand_gauss(){
 var camera;
 var gui= new dat.GUI();
 var clock = new THREE.Clock();
-var gltfLoader= new GLTFLoader();
 var scene, renderer, composer, controls, diamond;
 
 
@@ -142,17 +141,13 @@ var w= 1, h= 1;//of canvas == default framebuffer
 
 async function main(){
 	scene= new THREE.Scene();
-	camera= new THREE.PerspectiveCamera(40, 1., 0.001,10);
+	camera= new THREE.PerspectiveCamera(40, 1., 0.001,32);
 	camera.position.z = 0.6;
 	controls = new OrbitControls(camera);
 
 	const wgl2_yes= WEBGL.isWebGL2Available();
 	if(!wgl2_yes)
 		alert(WEBGL.getWebGL2ErrorMessage());
-		/*todo elegantly disable features, currently crashes if wgl1
-		known wgl2 features in use
-			shader dFdxy
-		*/
 
 	const canvas= document.getElementById('canvas');
 	const gl= canvas.getContext(wgl2_yes?'webgl2':'webgl',{
@@ -169,7 +164,9 @@ async function main(){
 		minFilter: THREE.NearestFilter,
 		magFilter: THREE.LinearFilter,
 		format: THREE.RGBAFormat,
-		type: THREE.FloatType
+		type: THREE.FloatType,
+		depth: true,
+		stencil: true,
 		} );
 	//targets have their own depthbuffer and stencil by default
 
@@ -231,6 +228,7 @@ async function main(){
 	scene.add(fsq);
 
 	diamond= {};
+	diamond.meshes= {};
 	diamond.uniforms= {
 		env_tex: env_tex,
 		color:{value: new THREE.Color(0xffffff)},//fixme properly bind threecolor to datgui
@@ -249,14 +247,15 @@ async function main(){
 		inversion:        {value: 0., minmax:[ -2,  2]},
 		inclusion:        {value: 2., minmax:[  0, 10],lambda:x=>Math.pow(linear_transform(x,[0,10],[0,.8]), .3) }
 	};
+	add_parameter_uniforms(diamond.uniforms);
+
+	var t={};
 	//defines must use 0:1 instead of false:true
 	diamond.defines={
+		DEBUG: 0,
 		ENVIRONMENT_CUBEMAP: 1,//uses phong if off, saving O(N) dependent texture samples
 		ENABLE_CHROMATIC: 1,//off:on 1 ray vs 3
 	}
-	add_parameter_uniforms(diamond.uniforms);
-
-
 	diamond.materials= {};
 	diamond.defines.BACKFACE= 1;
 	diamond.materials.back= new THREE.ShaderMaterial({
@@ -267,8 +266,15 @@ async function main(){
 		side: THREE.BackSide,
 		transparent: true,//this affects sort order
 		blending: THREE.NoBlending,//shader blends itself
+
+		stencilWrite: true,//for inclusions
+		stencilFunc: THREE.AlwaysStencilFunc,
+		stencilZPass: THREE.ReplaceStencilOp,
+		stencilRef: 2,
 	});
-	diamond.defines.BACKFACE= 0;
+	//diamond.defines.DEBUG= 1;//!!
+	//t={}; Object.assign(diamond.defines,t); diamond.defines= t;//unlinks previous references preventing their mutation
+	//diamond.defines.BACKFACE= 0;//uh this should be 0, but it looks better this way :shrug:
 	diamond.materials.front= new THREE.ShaderMaterial({
 		uniforms: diamond.uniforms,
 		defines: diamond.defines,
@@ -278,18 +284,41 @@ async function main(){
 		transparent: true,
 		blending: THREE.AdditiveBlending,
 	});
+	diamond.materials.front_stencil= new THREE.MeshBasicMaterial({
+		transparent: true,//not actually, just queue
+		colorWrite: false,
+		depthWrite: false,
+		depthTest: true,
+		stencilWrite: true,
+		stencilFunc: THREE.AlwaysStencilFunc,
+		stencilZPass: THREE.DecrementStencilOp,
+	});
+
+	//t={}; Object.assign(diamond.defines,t); diamond.defines= t;
+	//diamond.defines.DEBUG= 1;//!!
 	diamond.materials.inclusions= new THREE.ShaderMaterial({
 		//TODO
 		uniforms: diamond.uniforms,
 		defines: diamond.defines,
 		vertexShader: shader0_vert,
 		fragmentShader: shader0_frag,
-		//side: THREE.FrontSide,
-		//transparent: true,
-		//blending: THREE.AdditiveBlending,
-	});
+		side: THREE.FrontSide,
+		//side: THREE.DoubleSide,
+		transparent: true,
+		blending: THREE.NoBlending,
+		vertexColors: true,//todo confirm how to vertex attributes
 
-	//renderOrder is very important, 0: backface, 1: inclusions, 2: frontface
+		depthWrite: true,
+		depthTest: true,
+		stencilWrite: true,
+		stencilFunc: THREE.EqualStencilFunc,
+		stencilRef: 1,
+	});
+	//t={}; Object.assign(diamond.defines,t); diamond.defines= t;
+	//fixme oh god what is even happeneing with these reference-based params
+
+
+	//renderOrder is very important, [backface, front stencil, inclusions, front actual]
 	//this will change (somehow?) once raytraced
 
 	//gltf loading
@@ -298,30 +327,38 @@ async function main(){
 	function diamondload(gltf){
 		//todo figure out how to multiple materials on single mesh
 		//passing material array does not work
-		diamond.mesh_back= new THREE.Mesh(
-			gltf.scene.children[0].geometry, 		
-			diamond.materials.back,			
+		diamond.meshes.back= new THREE.Mesh(
+			gltf.scene.children[0].geometry,
+			diamond.materials.back,
 		);
-		diamond.mesh_front= new THREE.Mesh(
-			gltf.scene.children[0].geometry, 		
-			diamond.materials.front,			
+		diamond.meshes.front= new THREE.Mesh(
+			gltf.scene.children[0].geometry,
+			diamond.materials.front,
 		);
-		diamond.mesh_back.renderOrder= 0;
-		diamond.mesh_front.renderOrder= 2;
-		scene.add(diamond.mesh_front);
-		scene.add(diamond.mesh_back);
+		diamond.meshes.front_stencil= new THREE.Mesh(
+			gltf.scene.children[0].geometry,
+			diamond.materials.front_stencil,
+		);
+		diamond.meshes.back.renderOrder= 0;
+		diamond.meshes.front_stencil.renderOrder= 1;
+		diamond.meshes.front.renderOrder= 3;
+		scene.add(diamond.meshes.back);
+		scene.add(diamond.meshes.front_stencil);
+		scene.add(diamond.meshes.front);
 	}
 	function inclusionsload(gltf){
-		diamond.mesh_inclusions= new THREE.Mesh(
+		const m= new THREE.Mesh(
 			gltf.scene.children[0].geometry, 		
 			diamond.materials.inclusions,			
 		);
-		diamond.mesh_inclusions.renderOrder= 1;
-		//scene.add(diamond.mesh_inclusions);
+		m.scale.setScalar(.02);
+		m.renderOrder= 2;
+		diamond.meshes.inclusions= m;
+		scene.add(m);
 	}
 	const meshload= (file,lambda)=> {//this is a mess
 		const p= new Promise( resolve =>
-			gltfLoader.load(file,
+			new GLTFLoader().load(file,
 			mesh=>{
 				lambda(mesh);
 				resolve();
@@ -375,12 +412,14 @@ async function main(){
 	function render(){
 		var dt= clock.getDelta();
 
-		[diamond.mesh_front,diamond.mesh_back].map(m=>{
+		//todo use object children instead
+		for(let k in diamond.meshes){
+			const m= diamond.meshes[k];
 			//m.rotation.x += 0.0005;
 			//m.rotation.y += 0.0005;
 			m.rotation.x= -Math.PI/2.;
 			m.rotation.z += 0.0015;
-		})
+		}
 
 		Object.values(parameters).forEach(p=>{
 			if(p.animate)
@@ -388,8 +427,10 @@ async function main(){
 			//todo make animator analytic instead of differential
 		});
 
+		gl.enable(gl.STENCIL_TEST);
 		composer.render(dt);
 		//renderer.render(scene,camera);
+		renderer.clearStencil();
 
 		requestAnimationFrame(render);
 	};

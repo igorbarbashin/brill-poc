@@ -261,6 +261,7 @@ void main () {
 	//that is, effects are highly order dependent
 	vec3 c;
 
+/*
 	//inclusion
 	//todo make a seperate geometry, this is a crude placeholder
 	//inclusions are easily more complex than the outer gem
@@ -278,7 +279,7 @@ void main () {
 	}
 	nN+= (nN+incls)/2.;
 	nN= normalize(nN);
-
+*/
 
 	//nN+= rough;
 	float rough_mip= blur;
@@ -358,8 +359,8 @@ void main () {
 	c+= glow*color/255.;
 
 	//debug
-	#define DEBUG 1
 	#if DEBUG
+	c= vec3(0.,0.,1.);
 	//c= nN;
 	//c= nV;
 	//c= R;

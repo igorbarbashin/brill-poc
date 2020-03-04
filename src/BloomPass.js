@@ -68,8 +68,14 @@ var BloomPass = function ( strength, resolution, iterations, threshold, ramp ) {
 	this.clearColor = new Color(0);
 
 	// render targets
-	var pars = { minFilter: NearestFilter, magFilter: LinearFilter, format: RGBAFormat, 
-		type: FloatType };
+	var pars = { 
+		minFilter: NearestFilter,
+		magFilter: LinearFilter,
+		format: RGBAFormat, 
+		type: FloatType,
+		depthBuffer: false,
+		stencilBuffer: false,
+	};
 	const resx = this.resolution.x;
 	const resy = this.resolution.y;
 
