@@ -1,5 +1,34 @@
 import React, { useEffect } from 'react';
-import * as THREE from 'three';
+import * as THREE from 'three'
+import {
+	Clock,
+	Scene,
+	PerspectiveCamera,
+	WebGLRenderer,
+	WebGLRenderTarget,
+	NearestFilter,
+	LinearFilter,
+	RGBAFormat,
+	FloatType,
+	CubeTextureLoader,
+	sRGBEncoding,
+	Mesh,
+	PlaneGeometry,
+	MultiplyBlending,
+	Color,
+	ShaderMaterial,
+	BackSide,
+	NoBlending,
+	AlwaysStencilFunc,
+	ReplaceStencilOp,
+	FrontSide,
+	AdditiveBlending,
+	MeshBasicMaterial,
+	DecrementStencilOp,
+	DoubleSide,
+	EqualStencilFunc,
+	//i dont think its possible to wildcard import
+} from 'three';
 import { WEBGL } from 'three/examples/jsm/WebGL.js';
 import {EffectComposer}          from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import {RenderPass}              from 'three/examples/jsm/postprocessing/RenderPass.js';
@@ -21,7 +50,7 @@ import lib from '!!webpack-glsl-loader!./shaders/lib.glsl';
 import shader0_vert from '!!webpack-glsl-loader!./shaders/diamond0.vert.glsl';
 /*eslint-disable-next-line */
 import shader0_frag from '!!webpack-glsl-loader!./shaders/diamond0.frag.glsl';
-const OrbitControls = require('three-orbit-controls')(THREE);
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
 const cout= s=>console.log(s);
 
@@ -79,7 +108,7 @@ function rand_gauss(){
 
 var camera;
 var gui= new dat.GUI();
-var clock = new THREE.Clock();
+var clock = new Clock();
 var scene, renderer, composer, controls, diamond;
 
 
@@ -95,7 +124,7 @@ function datgui_add(ref, name, opt){
 	}
 	assign();//ref is initialized to gui-space not lambda-space, reverse that
 
-	if(ref.value instanceof THREE.Color){
+	if(ref.value instanceof Color){
 		return {
 			datgui: gui.addColor(ref,'value').name(name),
 			set value(x){
@@ -140,16 +169,16 @@ function add_parameter_uniforms(uniforms_object){
 var w= 1, h= 1;//of canvas == default framebuffer
 
 async function main(){
-	scene= new THREE.Scene();
-	camera= new THREE.PerspectiveCamera(40, 1., 0.001,32);
+	scene= new Scene();
+	camera= new PerspectiveCamera(40, 1., 0.001,32);
 	camera.position.z = 0.6;
-	controls = new OrbitControls(camera);
 
 	const wgl2_yes= WEBGL.isWebGL2Available();
 	if(!wgl2_yes)
 		alert(WEBGL.getWebGL2ErrorMessage());
 
 	const canvas= document.getElementById('canvas');
+	controls= new OrbitControls(camera,canvas);
 	const gl= canvas.getContext(wgl2_yes?'webgl2':'webgl',{
 		//hdr framebuffer does this stuff
 		alpha:false,
@@ -159,12 +188,12 @@ async function main(){
 		preserveDrawingBuffer: true,
 	});
 
-	renderer= new THREE.WebGLRenderer({canvas: canvas, context: gl});
-	var rtex= new THREE.WebGLRenderTarget( w,h, {
-		minFilter: THREE.NearestFilter,
-		magFilter: THREE.LinearFilter,
-		format: THREE.RGBAFormat,
-		type: THREE.FloatType,
+	renderer= new WebGLRenderer({canvas: canvas, context: gl});
+	var rtex= new WebGLRenderTarget( w,h, {
+		minFilter: NearestFilter,
+		magFilter: LinearFilter,
+		format: RGBAFormat,
+		type: FloatType,
 		depth: true,
 		stencil: true,
 		} );
@@ -201,7 +230,7 @@ async function main(){
 	datgui_add(pass_tmap.uniforms.exposure,'scene exposure',{minmax:[-2,7], lambda:Math.exp});
 	composer.addPass(pass_tmap);
 
-	var env_tex = new THREE.CubeTextureLoader()
+	var env_tex = new CubeTextureLoader()
 		.setPath('./environment0/')
 		.load([
 			'px.png',
@@ -211,16 +240,16 @@ async function main(){
 			'pz.png',
 			'nz.png'
 		]);//is this blocking or async?
-	//env_tex.encoding= THREE.sRGBEncoding;//this should be srgb, but looks bad with reinhard
+	//env_tex.encoding= sRGBEncoding;//this should be srgb, but looks bad with reinhard
 	scene.background= env_tex;
 
-	var fsq= new THREE.Mesh(
-		new THREE.PlaneGeometry(2,2),
-		new THREE.ShaderMaterial({
+	var fsq= new Mesh(
+		new PlaneGeometry(2,2),
+		new ShaderMaterial({
 			uniforms: { mul: {value: -8.} },
 			vertexShader:"void main(){ gl_Position= vec4(position, 1.0); }",
 			fragmentShader:"uniform float mul; void main(){ gl_FragColor= vec4(mul); }",
-			blending: THREE.MultiplyBlending,
+			blending: MultiplyBlending,
 			depthWrite: false,
 			depthTest: false,
 		}));
@@ -231,7 +260,7 @@ async function main(){
 	diamond.meshes= {};
 	diamond.uniforms= {
 		env_tex: env_tex,
-		color:{value: new THREE.Color(0xffffff)},//fixme properly bind threecolor to datgui
+		color:{value: new Color(0xffffff)},//fixme properly bind threecolor to datgui
 		gamma:            {value: 1.5, minmax:[.125,4.]},
 		metal:            {value: .1},
 		blur:             {value: 1., name:"gloss",lambda:x=>(1.-x)*6.},//transforms to mip level
@@ -258,60 +287,61 @@ async function main(){
 	}
 	diamond.materials= {};
 	diamond.defines.BACKFACE= 1;
-	diamond.materials.back= new THREE.ShaderMaterial({
+	diamond.materials.back= new ShaderMaterial({
 		uniforms: diamond.uniforms,
 		defines: diamond.defines,
 		vertexShader: shader0_vert,
 		fragmentShader: shader0_frag,
-		side: THREE.BackSide,
+		side: BackSide,
 		transparent: true,//this affects sort order
-		blending: THREE.NoBlending,//shader blends itself
+		blending: NoBlending,//shader blends itself
 
 		stencilWrite: true,//for inclusions
-		stencilFunc: THREE.AlwaysStencilFunc,
-		stencilZPass: THREE.ReplaceStencilOp,
+		stencilFunc: AlwaysStencilFunc,
+		stencilZPass: ReplaceStencilOp,
 		stencilRef: 2,
 	});
 	//diamond.defines.DEBUG= 1;//!!
 	//t={}; Object.assign(diamond.defines,t); diamond.defines= t;//unlinks previous references preventing their mutation
 	//diamond.defines.BACKFACE= 0;//uh this should be 0, but it looks better this way :shrug:
-	diamond.materials.front= new THREE.ShaderMaterial({
+	diamond.materials.front= new ShaderMaterial({
 		uniforms: diamond.uniforms,
 		defines: diamond.defines,
 		vertexShader: shader0_vert,
 		fragmentShader: shader0_frag,
-		side: THREE.FrontSide,
+		side: FrontSide,
 		transparent: true,
-		blending: THREE.AdditiveBlending,
+		blending: AdditiveBlending,
 	});
-	diamond.materials.front_stencil= new THREE.MeshBasicMaterial({
+	diamond.materials.front_stencil= new MeshBasicMaterial({
 		transparent: true,//not actually, just queue
 		colorWrite: false,
 		depthWrite: false,
 		depthTest: true,
 		stencilWrite: true,
-		stencilFunc: THREE.AlwaysStencilFunc,
-		stencilZPass: THREE.DecrementStencilOp,
+		stencilFunc: AlwaysStencilFunc,
+		stencilZPass: DecrementStencilOp,
 	});
+	//todo this doesnt clip far
 
 	//t={}; Object.assign(diamond.defines,t); diamond.defines= t;
 	//diamond.defines.DEBUG= 1;//!!
-	diamond.materials.inclusions= new THREE.ShaderMaterial({
+	diamond.materials.inclusions= new ShaderMaterial({
 		//TODO
 		uniforms: diamond.uniforms,
 		defines: diamond.defines,
 		vertexShader: shader0_vert,
 		fragmentShader: shader0_frag,
-		side: THREE.FrontSide,
-		//side: THREE.DoubleSide,
+		side: FrontSide,
+		//side: DoubleSide,
 		transparent: true,
-		blending: THREE.NoBlending,
+		blending: NoBlending,
 		vertexColors: true,//todo confirm how to vertex attributes
 
 		depthWrite: true,
 		depthTest: true,
 		stencilWrite: true,
-		stencilFunc: THREE.EqualStencilFunc,
+		stencilFunc: EqualStencilFunc,
 		stencilRef: 1,
 	});
 	//t={}; Object.assign(diamond.defines,t); diamond.defines= t;
@@ -327,15 +357,15 @@ async function main(){
 	function diamondload(gltf){
 		//todo figure out how to multiple materials on single mesh
 		//passing material array does not work
-		diamond.meshes.back= new THREE.Mesh(
+		diamond.meshes.back= new Mesh(
 			gltf.scene.children[0].geometry,
 			diamond.materials.back,
 		);
-		diamond.meshes.front= new THREE.Mesh(
+		diamond.meshes.front= new Mesh(
 			gltf.scene.children[0].geometry,
 			diamond.materials.front,
 		);
-		diamond.meshes.front_stencil= new THREE.Mesh(
+		diamond.meshes.front_stencil= new Mesh(
 			gltf.scene.children[0].geometry,
 			diamond.materials.front_stencil,
 		);
@@ -347,7 +377,7 @@ async function main(){
 		scene.add(diamond.meshes.front);
 	}
 	function inclusionsload(gltf){
-		const m= new THREE.Mesh(
+		const m= new Mesh(
 			gltf.scene.children[0].geometry, 		
 			diamond.materials.inclusions,			
 		);

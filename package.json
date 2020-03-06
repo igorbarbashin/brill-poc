@@ -14,7 +14,6 @@
     "react-scripts": "3.3.1",
     "three": "^0.113.2",
     "three-gltf-loader": "^1.111.0",
-    "three-orbit-controls": "^82.1.0",
     "webpack-glsl-loader": "^1.0.1"
   },
   "scripts": {
