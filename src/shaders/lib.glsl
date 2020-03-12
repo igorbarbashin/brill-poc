@@ -389,20 +389,44 @@ vec3 vnsesv(vec3 p){
 	return trilerp(nnn,nnp,npn,npp,pnn,pnp,ppn,ppp, smooth(fr));
 }
 
+float voronoi(vec3 x){
+	//by inigo quilez, 3d fork by khlor
+    ivec3 p = ivec3(floor( x ));
+    vec3  f = fract( x );
 
-float worley(vec3 c){
-    float acc= 1.;
-    vec3 cfl= floor(c);
-    vec3 cfr= fract(c);
-    for(int i=-1; i<=1; i++){
-    for(int j=-1; j<=1; j++){
-    for(int k=-1; k<=1; k++){
-        vec3 g= vec3(i,j,k)+cfl;
-        vec3 p= rand(g)+g;
-        float l= len(p-c);
-        acc= min(acc,l);
-    }}}
-	return acc;
+    ivec3 mb;
+    vec3 mr;
+
+    float res = 8.0;
+    for( int k=-1; k<=1; k++ )
+    for( int j=-1; j<=1; j++ )
+    for( int i=-1; i<=1; i++ )
+    {
+        ivec3 b = ivec3(i,j,k);
+        vec3  r = vec3(b) + hash3i1f(p+b)-f;
+        float d = dot(r,r);
+
+        if( d < res )
+        {
+            res = d;
+            mr = r;
+            mb = b;
+        }
+    }
+
+    res = 8.0;
+    for( int k=-2; k<=2; k++ )
+    for( int j=-2; j<=2; j++ )
+    for( int i=-2; i<=2; i++ )
+    {
+        ivec3 b = mb + ivec3(i,j,k);
+        vec3  r = vec3(b) + hash3i1f(p+b) - f;
+        float d = dot(0.5*(mr+r), normalize(r-mr));
+
+        res = min( res, d );
+    }
+
+    return res;
 }
 
 #define dFdxy(x) (vec2(dFdx(x),dFdy(x)))

@@ -6,6 +6,7 @@ import {
 	PerspectiveCamera,
 	WebGLRenderer,
 	WebGLRenderTarget,
+	WebGLCubeRenderTarget,
 	NearestFilter,
 	LinearFilter,
 	RGBAFormat,
@@ -13,6 +14,8 @@ import {
 	CubeTextureLoader,
 	sRGBEncoding,
 	Mesh,
+	Texture,
+	CubeTexture,
 	PlaneGeometry,
 	MultiplyBlending,
 	Color,
@@ -24,8 +27,10 @@ import {
 	FrontSide,
 	AdditiveBlending,
 	MeshBasicMaterial,
+	MeshDepthMaterial,
 	DecrementStencilOp,
 	DoubleSide,
+
 	EqualStencilFunc,
 	//i dont think its possible to wildcard import
 } from 'three';
@@ -33,6 +38,7 @@ import { WEBGL } from 'three/examples/jsm/WebGL.js';
 import {EffectComposer}          from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import {RenderPass}              from 'three/examples/jsm/postprocessing/RenderPass.js';
 import {BloomPass}               from './BloomPass.js';
+import {DepthShell}              from './DepthShell.js';
 import {AfterimagePass}          from 'three/examples/jsm/postprocessing/AfterimagePass.js';
 import {AdaptiveToneMappingPass} from 'three/examples/jsm/postprocessing/AdaptiveToneMappingPass.js';
 import {ShaderPass}              from 'three/examples/jsm/postprocessing/ShaderPass.js';
@@ -47,9 +53,11 @@ import './App.css';
 /*eslint-disable-next-line */
 import lib from '!!webpack-glsl-loader!./shaders/lib.glsl';
 /*eslint-disable-next-line */
-import shader0_vert from '!!webpack-glsl-loader!./shaders/diamond0.vert.glsl';
+import diamond_vert from '!!webpack-glsl-loader!./shaders/diamond.vert.glsl';
 /*eslint-disable-next-line */
-import shader0_frag from '!!webpack-glsl-loader!./shaders/diamond0.frag.glsl';
+import inclusion_vert from '!!webpack-glsl-loader!./shaders/inclusion.vert.glsl';
+/*eslint-disable-next-line */
+import diamond_frag from '!!webpack-glsl-loader!./shaders/diamond.frag.glsl';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
 const cout= s=>console.log(s);
@@ -160,8 +168,6 @@ function add_parameter(p,name){
 function add_parameter_uniforms(uniforms_object){
 	for(let k in uniforms_object){
 		let v= uniforms_object[k];
-		if(v.value===undefined)
-			continue;
 		add_parameter(v, v.name||k);
 	}
 }
@@ -170,7 +176,7 @@ var w= 1, h= 1;//of canvas == default framebuffer
 
 async function main(){
 	scene= new Scene();
-	camera= new PerspectiveCamera(40, 1., 0.001,32);
+	camera= new PerspectiveCamera(40, 1., 0.005,32);
 	camera.position.z = 0.6;
 
 	const wgl2_yes= WEBGL.isWebGL2Available();
@@ -196,8 +202,9 @@ async function main(){
 		type: FloatType,
 		depth: true,
 		stencil: true,
-		} );
-	//targets have their own depthbuffer and stencil by default
+		});
+
+	const depthShell= new DepthShell();
 
 	composer= new EffectComposer(renderer,rtex);
 	composer.addPass(new RenderPass(scene,camera));
@@ -230,6 +237,7 @@ async function main(){
 	datgui_add(pass_tmap.uniforms.exposure,'scene exposure',{minmax:[-2,7], lambda:Math.exp});
 	composer.addPass(pass_tmap);
 
+
 	var env_tex = new CubeTextureLoader()
 		.setPath('./environment0/')
 		.load([
@@ -242,7 +250,9 @@ async function main(){
 		]);//is this blocking or async?
 	//env_tex.encoding= sRGBEncoding;//this should be srgb, but looks bad with reinhard
 	scene.background= env_tex;
+	//scene.background= new Color(0);
 
+	//todo background mask into own file
 	var fsq= new Mesh(
 		new PlaneGeometry(2,2),
 		new ShaderMaterial({
@@ -259,7 +269,6 @@ async function main(){
 	diamond= {};
 	diamond.meshes= {};
 	diamond.uniforms= {
-		env_tex: env_tex,
 		color:{value: new Color(0xffffff)},//fixme properly bind threecolor to datgui
 		gamma:            {value: 1.5, minmax:[.125,4.]},
 		metal:            {value: .1},
@@ -277,29 +286,37 @@ async function main(){
 		inclusion:        {value: 2., minmax:[  0, 10],lambda:x=>Math.pow(linear_transform(x,[0,10],[0,.8]), .3) }
 	};
 	add_parameter_uniforms(diamond.uniforms);
+	//things not included in datgui, the order dependence here is kinda bleh
+	{
+		let u= diamond.uniforms;
+		u.tex_env= {value: env_tex};
+		u.tex_depth_back=  {value: depthShell.back.texture};
+		u.tex_depth_front= {value: depthShell.front.texture};
+		u.time= {value: 0.};
+	}
 
 	var t={};
 	//defines must use 0:1 instead of false:true
 	diamond.defines={
 		DEBUG: 0,
 		ENVIRONMENT_CUBEMAP: 1,//uses phong if off, saving O(N) dependent texture samples
-		ENABLE_CHROMATIC: 1,//off:on 1 ray vs 3
+		ENABLE_CHROMATIC: 1,//off:on 1:3 rays
 	}
 	diamond.materials= {};
 	diamond.defines.BACKFACE= 1;
 	diamond.materials.back= new ShaderMaterial({
 		uniforms: diamond.uniforms,
 		defines: diamond.defines,
-		vertexShader: shader0_vert,
-		fragmentShader: shader0_frag,
+		vertexShader: diamond_vert,
+		fragmentShader: diamond_frag,
 		side: BackSide,
 		transparent: true,//this affects sort order
 		blending: NoBlending,//shader blends itself
 
-		stencilWrite: true,//for inclusions
+		stencilWrite: true,//for inclusions, allowing early stencil test, since discard donks early depth
 		stencilFunc: AlwaysStencilFunc,
 		stencilZPass: ReplaceStencilOp,
-		stencilRef: 2,
+		stencilRef: 1,
 	});
 	//diamond.defines.DEBUG= 1;//!!
 	//t={}; Object.assign(diamond.defines,t); diamond.defines= t;//unlinks previous references preventing their mutation
@@ -307,22 +324,12 @@ async function main(){
 	diamond.materials.front= new ShaderMaterial({
 		uniforms: diamond.uniforms,
 		defines: diamond.defines,
-		vertexShader: shader0_vert,
-		fragmentShader: shader0_frag,
+		vertexShader: diamond_vert,
+		fragmentShader: diamond_frag,
 		side: FrontSide,
 		transparent: true,
 		blending: AdditiveBlending,
 	});
-	diamond.materials.front_stencil= new MeshBasicMaterial({
-		transparent: true,//not actually, just queue
-		colorWrite: false,
-		depthWrite: false,
-		depthTest: true,
-		stencilWrite: true,
-		stencilFunc: AlwaysStencilFunc,
-		stencilZPass: DecrementStencilOp,
-	});
-	//todo this doesnt clip far
 
 	//t={}; Object.assign(diamond.defines,t); diamond.defines= t;
 	//diamond.defines.DEBUG= 1;//!!
@@ -330,8 +337,8 @@ async function main(){
 		//TODO
 		uniforms: diamond.uniforms,
 		defines: diamond.defines,
-		vertexShader: shader0_vert,
-		fragmentShader: shader0_frag,
+		vertexShader: inclusion_vert,
+		fragmentShader: diamond_frag,
 		side: FrontSide,
 		//side: DoubleSide,
 		transparent: true,
@@ -344,16 +351,22 @@ async function main(){
 		stencilFunc: EqualStencilFunc,
 		stencilRef: 1,
 	});
+
 	//t={}; Object.assign(diamond.defines,t); diamond.defines= t;
 	//fixme oh god what is even happeneing with these reference-based params
+	//bug: gems need individual stencil ids otherwise they will draw their inclusions inside other nearby gems
 
+	diamond.probes= {
+		internal_normals: new WebGLCubeRenderTarget(),
+		//i think i will pack into an integer texture for this
+	};
 
 	//renderOrder is very important, [backface, front stencil, inclusions, front actual]
-	//this will change (somehow?) once raytraced
 
 	//gltf loading
+	//room for improvement but low priority
 	const loaders= [];
-	//maybe everything should be a single gltf file? i dunno.
+	//maybe everything should be a single gltf file?
 	function diamondload(gltf){
 		//todo figure out how to multiple materials on single mesh
 		//passing material array does not work
@@ -365,26 +378,12 @@ async function main(){
 			gltf.scene.children[0].geometry,
 			diamond.materials.front,
 		);
-		diamond.meshes.front_stencil= new Mesh(
-			gltf.scene.children[0].geometry,
-			diamond.materials.front_stencil,
-		);
-		diamond.meshes.back.renderOrder= 0;
-		diamond.meshes.front_stencil.renderOrder= 1;
-		diamond.meshes.front.renderOrder= 3;
-		scene.add(diamond.meshes.back);
-		scene.add(diamond.meshes.front_stencil);
-		scene.add(diamond.meshes.front);
 	}
 	function inclusionsload(gltf){
-		const m= new Mesh(
+		diamond.meshes.inclusions= new Mesh(
 			gltf.scene.children[0].geometry, 		
 			diamond.materials.inclusions,			
 		);
-		m.scale.setScalar(.02);
-		m.renderOrder= 2;
-		diamond.meshes.inclusions= m;
-		scene.add(m);
 	}
 	const meshload= (file,lambda)=> {//this is a mess
 		const p= new Promise( resolve =>
@@ -402,8 +401,9 @@ async function main(){
 
 	
 	function resize(){
-		w= canvas.clientWidth;
-		h= canvas.clientHeight;//fixme make this work with canvas wh instead
+		w= floor(canvas.clientWidth);
+		h= floor(canvas.clientHeight);
+		//FIXME why broken??!?!
 		//cout('afsddad')
 		//cout([w,h].join())
 		//canvas.width= w;
@@ -414,9 +414,9 @@ async function main(){
 			pass_bloom,
 			renderer,
 			rtex,
-			composer
-		].map(x=>x.setSize(w,h))
-
+			composer,
+			depthShell,
+		].forEach(x=>x.setSize(w,h));
 
 		camera.aspect= w/h;
 		camera.updateProjectionMatrix();
@@ -433,14 +433,27 @@ async function main(){
 		p.animate= rand()>.9;
 	});
 
-
 	cout('LOADING AWAIT')
 	await Promise.all(loaders);
 	cout('LOADING DONE')
 
+	diamond.meshes.back.renderOrder= 0;
+	diamond.meshes.inclusions.renderOrder= 1;
+	diamond.meshes.front.renderOrder= 2;
+
+	scene.add(diamond.meshes.back);
+	scene.add(diamond.meshes.front);
+	scene.add(diamond.meshes.inclusions);
+	depthShell.add(diamond.meshes.front);//this is correct because there is only 2 meshes because 2 materials :C
+
+	diamond.meshes.inclusions.scale.setScalar(.02);
+
+
+
 
 	function render(){
 		var dt= clock.getDelta();
+		controls.update();
 
 		//todo use object children instead
 		for(let k in diamond.meshes){
@@ -450,17 +463,18 @@ async function main(){
 			m.rotation.x= -Math.PI/2.;
 			m.rotation.z += 0.0015;
 		}
+		diamond.uniforms.time.value+= dt/8.;//reduced scale makes better precision
 
 		Object.values(parameters).forEach(p=>{
 			if(p.animate)
 				p.seek(rand_gauss()*.2,dt);
-			//todo make animator analytic instead of differential
+			//todo make animator analytic(t) instead of differential(dt)
 		});
 
-		gl.enable(gl.STENCIL_TEST);
+		//order dependent
+		depthShell.render(renderer,camera);
 		composer.render(dt);
 		//renderer.render(scene,camera);
-		renderer.clearStencil();
 
 		requestAnimationFrame(render);
 	};

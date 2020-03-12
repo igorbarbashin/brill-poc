@@ -1,5 +1,5 @@
 //heavy fork of {3js/UnrealBloom by spidersharma} by khlorghaal
-//forsakes the whole mip chain thing for a simple iterated diffusion
+//forsakes the whole mip chain thing for a simple blur
 
 import {
 	AdditiveBlending,
@@ -82,7 +82,7 @@ var BloomPass = function ( strength, resolution, iterations, threshold, ramp ) {
 	this.renderTargetBright = new WebGLRenderTarget( resx, resy, pars );
 	this.renderTargetBright.texture.name = "BloomPass.bright";
 	this.renderTargetBright.texture.generateMipmaps = false;
-	//delete pars.type;//only first pass needs hdr //todo this makes it unhappy, find where exactly to collapse hdr
+	//delete pars.type;//todo performance: only first pass needs hdr //this makes it unhappy, find where exactly to collapse hdr
 
 	var renderTargetHorizonal = new WebGLRenderTarget( resx, resy, pars );
 	renderTargetHorizonal.texture.name = "BloomPass.h";
