@@ -6,12 +6,31 @@ varying vec3 vV;//view view direction
 varying vec2 vUV;//screenspace[0,1]
 varying vec3 wV;//world view direction
 
+#define PI  3.14159265359
+#define TAU (PI*2.)
+#define PHI 1.61803399
+vec3 nse33(vec3 p){
+	return fract(tan(p*vec3(PHI,PHI*PHI,PHI*PHI*PHI))*512.);
+}
+
+uniform float time;
+uniform float excitement;
+uniform float dance;
+
 void main(){
 	mat3 worldNormalMatrix= mat3(modelMatrix);
 	//bug: orthoabnormal model matrix causes direction vector skew
 	//nonuniform scale models are very rare though
 
-	oP= position;
+	vec3 p= position;
+	{
+		vec3 t= (p+time)*excitement;
+		vec3 fr= fract(t);
+		vec3 f= nse33(floor(t));
+		vec3 c= nse33( ceil(t));
+		p+= (mix(f,c,fr)*2.-1.)*dance;
+	}
+	oP= p;
 
 	vec4 m= modelMatrix*vec4(oP, 1.);
 	wP= m.xyz;

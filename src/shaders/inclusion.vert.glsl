@@ -29,7 +29,7 @@ void main(){
 	
 	vec3 p= position;
 	vec3 n= normal;
-	p+= nse33(p*69.420)*inclusion*sin(time*69.);
+	p+= -n*1.;//nse33(p*69.420)*inclusion;
 
 	oP= p;
 

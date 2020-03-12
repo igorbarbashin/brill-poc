@@ -247,15 +247,16 @@ void main () {
 	vec3 I;
 	vec3 cI;
 	float ior_;
-	#if BACKFACE
-	ior_= 1./ior;
-	#else
-	ior_= ior;
-	#endif
+	//#if BACKFACE
+	//ior_= 1./ior;
+	//#else
+	//ior_= ior;
+	//#endif
+	ior_= ior;//looks better
 	#if ENABLE_CHROMATIC
-		vec3 Ir= refract(nV,nN,ior_-chroma);
+		vec3 Ir= refract(nV,nN,ior_*(1.-chroma));
 		vec3 Ig= refract(nV,nN,ior_       );
-		vec3 Ib= refract(nV,nN,ior_+chroma);
+		vec3 Ib= refract(nV,nN,ior_*(1.+chroma));
 		Ir+= step(-sum(Ir),0.)*R;//internal reflection
 		Ig+= step(-sum(Ig),0.)*R;
 		Ib+= step(-sum(Ib),0.)*R;	
@@ -316,8 +317,8 @@ void main () {
 	//c.r= .35;
 
 	//c= vec3(0.,0.,1.);
-	c= nN*.5+.5;
 	#if DEBUG
+	//c= nN*.5+.5;
 	//c= nV;
 	//c= R;
 	//c= env(R, rough_mip)+.2;

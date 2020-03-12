@@ -214,7 +214,7 @@ async function main(){
 	const pass_tmap= new ShaderPass({
 		uniforms: {
 			tDiffuse: { value: null },
-			exposure: { value: 0. }
+			exposure: { value: 1.2 }
 		},
 		vertexShader: `
 			varying vec2 vUv;
@@ -270,20 +270,22 @@ async function main(){
 	diamond.meshes= {};
 	diamond.uniforms= {
 		color:{value: new Color(0xffffff)},//fixme properly bind threecolor to datgui
-		gamma:            {value: 1.5, minmax:[.125,4.]},
+		gamma:            {value: 2.5, minmax:[.125,4.]},
 		metal:            {value: .1},
 		blur:             {value: 1., name:"gloss",lambda:x=>(1.-x)*6.},//transforms to mip level
 		reflectance:      {value: .5},
 		transmittance:    {value: 1.},
 		ior:              {value: 2., minmax:[-5,5], name:"refraction index"},
 		sparkle_abundance:{value: .4,  name:"sparkle amount",lambda:x=>Math.pow(x,.5)},
-		sparkle_mag:      {value: 1., minmax:[0,128], name:"sparkle brightness"},
+		sparkle_mag:      {value: 1., minmax:[0,32], name:"sparkle brightness"},
 		shimmer:     	  {value: .5},
 		glow:             {value: .1, minmax:[  0,  4]},
-		iridescence:      {value: 0., minmax:[  0,  4], lambda:Math.exp },
-		chroma:           {value: .1, minmax:[-.5, .5]},
-		inversion:        {value: 0., minmax:[ -2,  2]},
-		inclusion:        {value: 2., minmax:[  0, 10],lambda:x=>Math.pow(linear_transform(x,[0,10],[0,6.8]), 1.3) }
+		iridescence:      {value: 0., minmax:[  0,  4],lambda:x=>x*max(0.,x-.125) },
+		chroma:           {value: .1, minmax:[-1,   1],lambda:x=>sin(x*x*x*PI)},
+		inversion:        {value: 0., minmax:[ -1,  1],lambda:x=>pow(x*1.2,4.)},
+		inclusion:        {value: 2., minmax:[  0, 10],lambda:x=>pow(linear_transform(x,[0,10],[0,6.8]), 1.3) },
+		dance:            {value: 0., lambda:x=>x*x*x/208.},
+		excitement:       {value: 0., lambda:x=>x*x*x*200.},
 	};
 	add_parameter_uniforms(diamond.uniforms);
 	//things not included in datgui, the order dependence here is kinda bleh
@@ -427,10 +429,13 @@ async function main(){
 	//parameter initialization
 	Object.values(parameters).forEach(p=>{
 		//randomized randomization
-		if(rand()>.69)
+		if(rand()>.85)
 			p.randomize();
 		//randomized animation
-		p.animate= rand()>.9;
+		if(rand()>.95)
+			p.animation= rand_gauss()/12.;
+		else
+			p.animation= 0.;
 	});
 
 	cout('LOADING AWAIT')
@@ -443,8 +448,8 @@ async function main(){
 
 	scene.add(diamond.meshes.back);
 	scene.add(diamond.meshes.front);
-	scene.add(diamond.meshes.inclusions);
-	depthShell.add(diamond.meshes.front);//this is correct because there is only 2 meshes because 2 materials :C
+	//scene.add(diamond.meshes.inclusions);
+	//depthShell.add(diamond.meshes.front);//this is correct because there is only 2 meshes because 2 materials :C
 
 	diamond.meshes.inclusions.scale.setScalar(.02);
 
@@ -466,13 +471,13 @@ async function main(){
 		diamond.uniforms.time.value+= dt/8.;//reduced scale makes better precision
 
 		Object.values(parameters).forEach(p=>{
-			if(p.animate)
-				p.seek(rand_gauss()*.2,dt);
+			if(p.animation!=0.)
+				p.seek(rand_gauss()*p.animation,dt);
 			//todo make animator analytic(t) instead of differential(dt)
 		});
 
 		//order dependent
-		depthShell.render(renderer,camera);
+		//depthShell.render(renderer,camera);
 		composer.render(dt);
 		//renderer.render(scene,camera);
 
