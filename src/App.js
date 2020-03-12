@@ -176,7 +176,7 @@ var w= 1, h= 1;//of canvas == default framebuffer
 
 async function main(){
 	scene= new Scene();
-	camera= new PerspectiveCamera(40, 1., 0.005,32);
+	camera= new PerspectiveCamera(60, 1., 0.005,32);
 	camera.position.z = 0.6;
 
 	const wgl2_yes= WEBGL.isWebGL2Available();
@@ -283,7 +283,7 @@ async function main(){
 		iridescence:      {value: 0., minmax:[  0,  4], lambda:Math.exp },
 		chroma:           {value: .1, minmax:[-.5, .5]},
 		inversion:        {value: 0., minmax:[ -2,  2]},
-		inclusion:        {value: 2., minmax:[  0, 10],lambda:x=>Math.pow(linear_transform(x,[0,10],[0,.8]), .3) }
+		inclusion:        {value: 2., minmax:[  0, 10],lambda:x=>Math.pow(linear_transform(x,[0,10],[0,6.8]), 1.3) }
 	};
 	add_parameter_uniforms(diamond.uniforms);
 	//things not included in datgui, the order dependence here is kinda bleh

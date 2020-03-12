@@ -316,8 +316,8 @@ void main () {
 	//c.r= .35;
 
 	//c= vec3(0.,0.,1.);
+	c= nN*.5+.5;
 	#if DEBUG
-	//c= nN;
 	//c= nV;
 	//c= R;
 	//c= env(R, rough_mip)+.2;

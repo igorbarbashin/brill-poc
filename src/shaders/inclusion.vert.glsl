@@ -1,3 +1,14 @@
+//@import lib
+#line 3
+
+#define PI  3.14159265359
+#define TAU (PI*2.)
+#define PHI 1.61803399
+vec3 nse33(vec3 p){
+	return fract(tan((p+p.x+p.y+p.z)*vec3(PHI,PHI*PHI,PHI*PHI*PHI))*512.);
+}
+
+
 //fixme share attributes with diamond using a header instead of copypaste
 varying vec3 oP;//object vert position
 varying vec3 wP;//world position
@@ -8,6 +19,7 @@ varying vec2 vUV;//screenspace[0,1]
 varying vec3 wV;//world view direction
 
 uniform float time;
+uniform float inclusion;
 
 void main(){
 	mat3 worldNormalMatrix= mat3(modelMatrix);
@@ -16,7 +28,8 @@ void main(){
 
 	
 	vec3 p= position;
-	p.z+= sin(time*32.+p.x);
+	vec3 n= normal;
+	p+= nse33(p*69.420)*inclusion*sin(time*69.);
 
 	oP= p;
 
@@ -24,8 +37,8 @@ void main(){
 	wP= m.xyz;
 	vec4 mv= modelViewMatrix*vec4(oP, 1.);
 
-	vN= normalMatrix*normal;
-	wN= worldNormalMatrix*normal;
+	vN= normalMatrix*n;
+	wN= worldNormalMatrix*n;
 
 	vec4 mvp= projectionMatrix*mv;
 
