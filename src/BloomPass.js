@@ -61,7 +61,7 @@ var BloomPass = function ( strength, resolution, iterations, threshold, ramp ) {
 	this.strength = 1;
 	this.iterations = iterations||32;
 	this.threshold = 1;
-	this.ramp= ramp||.8;
+	this.ramp= ramp||.1;
 	this.resolution = new Vector2(1,1);//gets initialized properly by init::resize
 
 	// create color only once here, reuse it later inside the render function

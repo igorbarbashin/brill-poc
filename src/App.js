@@ -209,8 +209,8 @@ async function main(){
 	composer= new EffectComposer(renderer,rtex);
 	composer.addPass(new RenderPass(scene,camera));
 	//composer.addPass(new AdaptiveToneMappingPass());//this is not very good
-	const pass_bloom= new BloomPass();
-	composer.addPass(pass_bloom);
+	// const pass_bloom= new BloomPass();
+	// composer.addPass(pass_bloom);
 	const pass_tmap= new ShaderPass({
 		uniforms: {
 			tDiffuse: { value: null },
@@ -413,7 +413,7 @@ async function main(){
 
 		[
 			//perhaps this should be an event which dependents register themself?
-			pass_bloom,
+			// pass_bloom,
 			renderer,
 			rtex,
 			composer,
