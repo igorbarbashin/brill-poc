@@ -239,7 +239,7 @@ async function main(){
 
 
 	var env_tex = new CubeTextureLoader()
-		.setPath('./environment0/')
+		.setPath('./textures/cubemap/')
 		.load([
 			'px.png',
 			'nx.png',
@@ -465,8 +465,8 @@ async function main(){
 			const m= diamond.meshes[k];
 			//m.rotation.x += 0.0005;
 			//m.rotation.y += 0.0005;
-			m.rotation.x= -Math.PI/2.;
-			m.rotation.z += 0.0015;
+			// m.rotation.x= -Math.PI/2.;
+			// m.rotation.z += 0.0015;
 		}
 		diamond.uniforms.time.value+= dt/8.;//reduced scale makes better precision
 
