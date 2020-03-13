@@ -269,22 +269,22 @@ async function main(){
 	diamond= {};
 	diamond.meshes= {};
 	diamond.uniforms= {
-		color:{value: new Color(0xffffff)},//fixme properly bind threecolor to datgui
-		gamma:            {value: 2.5, minmax:[.125,4.]},
-		metal:            {value: .1},
+		color:{value: new Color(255,255,255)},//fixme properly bind threecolor to datgui
+		gamma:            {value: 4, minmax:[.125,8.]},
+		metal:            {value: 1.},
 		blur:             {value: 1., name:"gloss",lambda:x=>(1.-x)*6.},//transforms to mip level
-		reflectance:      {value: .5},
-		transmittance:    {value: 1.},
-		ior:              {value: 2., minmax:[-5,5], name:"refraction index"},
-		sparkle_abundance:{value: .4,  name:"sparkle amount",lambda:x=>Math.pow(x,.5)},
-		sparkle_mag:      {value: 1., minmax:[0,32], name:"sparkle brightness"},
-		shimmer:     	  {value: .5},
-		glow:             {value: .1, minmax:[  0,  4]},
+		reflectance:      {value: 1.},
+		transmittance:    {value: .3},
+		ior:              {value: -0.8, minmax:[-5,5], name:"refraction index"},
+		sparkle_abundance:{value: .38,  name:"sparkle amount",lambda:x=>Math.pow(x,.5)},
+		sparkle_mag:      {value: 32, minmax:[0,32], name:"sparkle brightness"},
+		shimmer:     	  {value: 0.},
+		glow:             {value: 0., minmax:[  0,  4]},
 		iridescence:      {value: 0., minmax:[  0,  4],lambda:x=>x*max(0.,x-.125) },
-		chroma:           {value: .1, minmax:[-1,   1],lambda:x=>sin(x*x*x*PI)},
-		inversion:        {value: 0., minmax:[ -1,  1],lambda:x=>pow(x*1.2,4.)},
-		inclusion:        {value: 2., minmax:[  0, 10],lambda:x=>pow(linear_transform(x,[0,10],[0,6.8]), 1.3) },
-		dance:            {value: 0., lambda:x=>x*x*x/208.},
+		chroma:           {value: 0., minmax:[-1,   1],lambda:x=>sin(x*x*x*PI)},
+		inversion:        {value: 1., minmax:[ -1,  1],lambda:x=>pow(x*1.2,4.)},
+		inclusion:        {value: 0., minmax:[  0, 10],lambda:x=>pow(linear_transform(x,[0,10],[0,6.8]), 1.3) },
+		dance:            {value: 1., lambda:x=>x*x*x/208.},
 		excitement:       {value: 0., lambda:x=>x*x*x*200.},
 	};
 	add_parameter_uniforms(diamond.uniforms);
@@ -428,15 +428,17 @@ async function main(){
 
 	//parameter initialization
 	Object.values(parameters).forEach(p=>{
-		//randomized randomization
-		if(rand()>.85)
-			p.randomize();
-		//randomized animation
-		if(rand()>.95)
-			p.animation= rand_gauss()/12.;
-		else
+		// //randomized randomization
+		// if(rand()>.85)
+		// 	p.randomize();
+		// //randomized animation
+		// if(rand()>.95)
+		// 	p.animation= rand_gauss()/12.;
+		// else
 			p.animation= 0.;
-	});
+  });
+  
+  
 
 	cout('LOADING AWAIT')
 	await Promise.all(loaders);
