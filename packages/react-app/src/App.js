@@ -1,9 +1,14 @@
 import React from "react";
-import logo from "./ethereumLogo.png";
+import { Route, NavLink, BrowserRouter } from 'react-router-dom';
 import { addresses, abis } from "@project/contracts";
 import { gql } from "apollo-boost";
 import { ethers } from "ethers";
 import { useQuery } from "@apollo/react-hooks";
+
+import Landing from './components/Landing';
+import Mining from './components/Mining';
+import Inventory from './components/Inventory';
+
 import "./App.css";
 
 const GET_TRANSFERS = gql`
@@ -38,32 +43,26 @@ function App() {
   }, [loading, error, data]);
 
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="react-logo" />
-        <p>
-          Edit <code>packages/react-app/src/App.js</code> and save to reload.
-        </p>
-        <button onClick={() => readOnchainBalance()} style={{ display: "none" }}>
-          Read On-Chain Balance
-        </button>
-        <a
-          className="App-link"
-          href="https://ethereum.org/developers/#getting-started"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ marginTop: "0px" }}
-        >
-          Learn Ethereum
-        </a>
-        <a className="App-link" href="https://reactjs.org" target="_blank" rel="noopener noreferrer">
-          Learn React
-        </a>
-        <a className="App-link" href="https://thegraph.com/docs/quick-start" target="_blank" rel="noopener noreferrer">
-          Learn The Graph
-        </a>
-      </header>
-    </div>
+    <BrowserRouter>
+      <div className="page">
+        <header className="page__header">
+          <NavLink className="sign" exact to="/"><img src="./images/sign.svg" alt="" /></NavLink>
+          <nav className="main-nav">
+            <NavLink className="main-nav__link" activeClassName="active" to="/mining">Mining</NavLink>
+            <NavLink className="main-nav__link" activeClassName="active" to="/inventory">Inventory</NavLink>
+          </nav>			
+          <a className="discord" href="https://discord.gg/RX8k5zY">Join Discord</a>
+        </header>
+        <div className="page__content">
+          <Route exact path="/" component={Landing}/>
+          <Route path="/mining" component={Mining}/>
+          <Route path="/inventory" component={Inventory}/>
+        </div>
+        <div className="page__footer">
+          <div className="powered">powered by Ethereum</div>
+        </div>
+      </div>
+    </BrowserRouter>
   );
 }
 
